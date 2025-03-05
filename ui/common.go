@@ -1,5 +1,5 @@
-// Package HTML holds all the common HTML components and utilities.
-package html
+// Package ui holds all the common HTML components and utilities.
+package ui
 
 import (
 	"crypto/sha256"

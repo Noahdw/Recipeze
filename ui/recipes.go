@@ -1,4 +1,4 @@
-package html
+package ui
 
 import (
 	"fmt"
@@ -15,13 +15,12 @@ import (
 func RecipePage(props PageProps, recipes []model.Recipe, now time.Time) Node {
 	props.Title = "Recipes"
 	return page(props,
+		ModalContainer(),
 		Div(Class("flex flex-col md:flex-row gap-6"),
 			// Left column - Recipe List
 			Div(Class("w-full md:w-1/3"),
 				H1(Class("text-2xl font-bold mb-4"), Text("Recipes")),
-				Button(
-					Class("rounded-md bg-indigo-600 px-2.5 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 mb-4"),
-					Text("Add recipe"), hx.Post("/recipes"), hx.Target("#recipe-list")),
+				AddRecipeButton(),
 				Div(ID("recipe-list"),
 					RecipeListPartial(recipes, now),
 				),
@@ -79,13 +78,79 @@ func ErrorPartial(message string) Node {
 			Class("flex"),
 			Div(
 				Class("flex-shrink-0"),
-				// You could add an SVG icon here if desired
 			),
 			Div(
 				Class("ml-3"),
 				P(
 					Class("text-sm font-medium text-red-800"),
 					Text(message),
+				),
+			),
+		),
+	)
+}
+
+func AddRecipeButton() Node {
+	return Button(
+		Class("bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"),
+		hx.Get("/recipes/new"),
+		hx.Target("#modal-container"),
+		hx.Swap("innerHTML"),
+		Text("Add Recipe"),
+	)
+}
+
+func ModalContainer() Node {
+	return Div(
+		ID("modal-container"),
+		// The modal will be loaded here
+	)
+}
+
+func RecipeModal() Node {
+	return Div(
+		Class("fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50"),
+		Div(
+			Class("bg-white rounded-lg p-6 max-w-md w-full"),
+			Div(
+				Class("flex justify-between items-center mb-4"),
+				H3(Class("text-lg font-medium"), Text("Add New Recipe")),
+				Button(
+					Class("text-gray-400 hover:text-gray-500"),
+					hx.Get("/empty"),
+					hx.Target("#modal-container"),
+					hx.Swap("innerHTML"),
+					Text("×"),
+				),
+			),
+			Form(
+				hx.Post("/recipes"),
+				hx.Target("#recipe-list"),
+				hx.Swap("innerHTML"),
+				//hx.On("after-request", "document.querySelector('#modal-container').innerHTML = ''"),
+				Attr("hx-on::after-request", "document.querySelector('#modal-container').innerHTML = ''"),
+
+				Div(
+					Class("mb-4"),
+					Label(Class("block text-sm font-medium text-gray-700"), For("recipe-url"), Text("Recipe URL")),
+					Input(Type("url"), ID("recipe-url"), Name("url"), Required(), Class("mt-1 block w-full rounded-md border-gray-300 shadow-sm")),
+				),
+
+				Div(
+					Class("mt-6 flex justify-end"),
+					Button(
+						Type("button"),
+						Class("mr-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded"),
+						hx.Get("/empty"),
+						hx.Target("#modal-container"),
+						hx.Swap("innerHTML"),
+						Text("Cancel"),
+					),
+					Button(
+						Type("submit"),
+						Class("bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"),
+						Text("Save Recipe"),
+					),
 				),
 			),
 		),
