@@ -52,7 +52,7 @@ func NewServer(opts NewServerOptions) *Server {
 
 // Start the server and set up routes.
 func (s *Server) Start() error {
-	s.log.Info("Starting http server", "address", "http://localhost:8080")
+	s.log.Info("Starting http server", "address", "0.0.0.0:8080")
 
 	s.setupRoutes()
 

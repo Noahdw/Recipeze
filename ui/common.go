@@ -49,7 +49,7 @@ func page(props PageProps, children ...Node) Node {
 						Group(children),
 					),
 				),
-				footer(),
+				//footer(),
 			),
 		},
 	})

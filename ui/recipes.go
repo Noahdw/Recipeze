@@ -5,6 +5,7 @@ import (
 	"time"
 
 	. "maragu.dev/gomponents"
+	"maragu.dev/gomponents-heroicons/v3/solid"
 	hx "maragu.dev/gomponents-htmx"
 	. "maragu.dev/gomponents/html"
 
@@ -60,13 +61,34 @@ func RecipeListPartial(recipes []model.Recipe, now time.Time) Node {
 // RecipeDetailPartial shows the details for a selected recipe
 func RecipeDetailPartial(recipe *model.Recipe) Node {
 	return Div(
-		H2(Class("text-xl font-bold mb-4"), Text(recipe.Name)),
-		P(Class("mb-2"),
-			A(Href(recipe.Url), Target("_blank"), Text("View Original Recipe")),
+		H2(Class("text-xl font-bold mb-4"), Text(recipe.Name)), // title
+
+		// Button container - flex row to make buttons appear horizontally
+		Div(Class("flex flex-row gap-4 mb-6"),
+			// View Original Recipe Link
+			A(
+				Attr("href", recipe.Url),
+				Attr("target", "_blank"),
+				Attr("rel", "noopener noreferrer"),
+				Class("inline-flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-md transition-colors"),
+				Text("View Original Recipe"),
+			),
+
+			// Delete Button
+			Button(
+				Class("inline-flex items-center justify-center rounded-md transition-colors bg-red-300 hover:bg-red-600 cursor-pointer"),
+				hx.Delete(fmt.Sprintf("/recipes/%d", recipe.ID)),
+				hx.Target("#recipe-detail"),
+				Attr("aria-label", "Delete recipe"),
+				Span(
+					Class("flex items-center justify-center p-2"),
+					solid.Trash(Class("text-white h-5 w-5")),
+				),
+			),
 		),
+
 		H3(Class("text-lg font-semibold mb-2"), Text("Notes")),
 		P(Text(recipe.Url)),
-		// Add more recipe details here as needed
 	)
 }
 
@@ -92,7 +114,7 @@ func ErrorPartial(message string) Node {
 
 func AddRecipeButton() Node {
 	return Button(
-		Class("bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"),
+		Class("bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer"),
 		hx.Get("/recipes/new"),
 		hx.Target("#modal-container"),
 		hx.Swap("innerHTML"),

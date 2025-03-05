@@ -26,7 +26,7 @@ func TestServer_Start(t *testing.T) {
 		// I know we could check that the server is running here, but it's easier to just wait a bit
 		time.Sleep(10 * time.Millisecond)
 
-		res, err := http2.Get("http://localhost:8080/")
+		res, err := http2.Get("http://0.0.0.0:8080/")
 		is.NotError(t, err)
 		is.Equal(t, http2.StatusOK, res.StatusCode)
 		body, err := io.ReadAll(res.Body)
