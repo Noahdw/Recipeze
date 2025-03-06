@@ -13,5 +13,6 @@ type Recipe struct {
 	Url         pgtype.Text
 	Name        pgtype.Text
 	Description pgtype.Text
+	ImageUrl    pgtype.Text
 	CreatedAt   pgtype.Timestamptz
 }

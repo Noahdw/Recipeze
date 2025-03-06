@@ -15,9 +15,10 @@ const addRecipe = `-- name: AddRecipe :one
 INSERT INTO recipes (
     url,
     name,
-    description
+    description,
+    image_url
 ) VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4
 )
 RETURNING id
 `
@@ -26,10 +27,16 @@ type AddRecipeParams struct {
 	Url         pgtype.Text
 	Name        pgtype.Text
 	Description pgtype.Text
+	ImageUrl    pgtype.Text
 }
 
 func (q *Queries) AddRecipe(ctx context.Context, arg AddRecipeParams) (int32, error) {
-	row := q.db.QueryRow(ctx, addRecipe, arg.Url, arg.Name, arg.Description)
+	row := q.db.QueryRow(ctx, addRecipe,
+		arg.Url,
+		arg.Name,
+		arg.Description,
+		arg.ImageUrl,
+	)
 	var id int32
 	err := row.Scan(&id)
 	return id, err
@@ -45,7 +52,7 @@ func (q *Queries) DeleteRecipeByID(ctx context.Context, id int32) error {
 }
 
 const getRecipeByID = `-- name: GetRecipeByID :one
-SELECT id, url, name, description, created_at from recipes WHERE id = $1 LIMIT 1
+SELECT id, url, name, description, image_url, created_at from recipes WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetRecipeByID(ctx context.Context, id int32) (Recipe, error) {
@@ -56,13 +63,14 @@ func (q *Queries) GetRecipeByID(ctx context.Context, id int32) (Recipe, error) {
 		&i.Url,
 		&i.Name,
 		&i.Description,
+		&i.ImageUrl,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getRecipes = `-- name: GetRecipes :many
-SELECT id, url, name, description, created_at FROM recipes
+SELECT id, url, name, description, image_url, created_at FROM recipes
 `
 
 func (q *Queries) GetRecipes(ctx context.Context) ([]Recipe, error) {
@@ -79,6 +87,7 @@ func (q *Queries) GetRecipes(ctx context.Context) ([]Recipe, error) {
 			&i.Url,
 			&i.Name,
 			&i.Description,
+			&i.ImageUrl,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

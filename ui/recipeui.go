@@ -15,8 +15,10 @@ import (
 // RecipePage shows the main recipe listing with a detail view
 func RecipePage(props PageProps, recipes []model.Recipe) Node {
 	defaultId := 0
+	var defaultRecipe *model.Recipe
 	if len(recipes) > 0 {
 		defaultId = recipes[0].ID
+		defaultRecipe = &recipes[0]
 	}
 	slog.Info("id ", "id", defaultId)
 
@@ -36,8 +38,7 @@ func RecipePage(props PageProps, recipes []model.Recipe) Node {
 			// Right column - Recipe Detail
 			Div(Class("w-full md:w-2/3 bg-gray-50 p-4 rounded-lg"),
 				Div(ID("recipe-detail"),
-					// Initially empty or with a placeholder
-					P(Class("text-gray-500 italic"), Text("Select a recipe to view details")),
+					RecipeDetailPartial(defaultRecipe),
 				),
 			),
 		),
@@ -59,7 +60,7 @@ func RecipeListPartial(recipes []model.Recipe, selectedID int) Node {
 				buttonClass = "w-full text-left cursor-pointer hover:bg-gray-100 py-1 px-2 rounded"
 			}
 			return Li(
-				Class("py-2 px-3"),
+				Class("py-1"),
 				Button(
 					Class(buttonClass),
 					hx.Get(fmt.Sprintf("/recipes/%d", recipe.ID)),
@@ -84,7 +85,7 @@ func RecipeDetailPartial(recipe *model.Recipe) Node {
 				Attr("target", "_blank"),
 				Attr("rel", "noopener noreferrer"),
 				Class("inline-flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-md transition-colors"),
-				Text("View Original Recipe"),
+				Text("Go to recipe"),
 			),
 
 			// Edit Button
@@ -112,8 +113,16 @@ func RecipeDetailPartial(recipe *model.Recipe) Node {
 			),
 		),
 
-		H3(Class("text-lg font-semibold mb-2"), Text("Notes")),
-		P(Text(recipe.Url)),
+		H3(Class("text-lg font-semibold mb-1"), Text("Notes")),
+		Div(
+			Class("whitespace-pre-wrap break-words"), // Preserves newlines and breaks long words
+			Text(recipe.Description),
+		),
+		Img(
+			Src(recipe.ImageURL),
+			Class("w-full max-h-64 object-cover rounded-lg"),
+			Loading("lazy"),
+		),
 	)
 }
 
@@ -168,6 +177,7 @@ func RecipeEditPartial(recipe *model.Recipe) Node {
 					Name("description"),
 					Class("w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"),
 					Text(recipe.Description),
+					Rows("6"),
 				),
 			),
 

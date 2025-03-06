@@ -103,8 +103,9 @@ func Home(r chi.Router, s *service.Recipe) {
 			return false
 		}
 		processAllProduct(doc)
+		imgURL := extractMetaImage(doc)
 
-		id, err := s.AddRecipe(r.Context(), url, title, "")
+		id, err := s.AddRecipe(r.Context(), url, title, "", imgURL)
 		if err != nil {
 			slog.Error("Could not add recipe", "error", err.Error())
 			return nil, err
@@ -250,4 +251,65 @@ func Home(r chi.Router, s *service.Recipe) {
 		return nil, nil
 	}))
 
+}
+
+// extractMetaImage finds the og:image or similar meta tag from an HTML document
+func extractMetaImage(doc *html.Node) string {
+	// Try to find Open Graph image first
+	ogImage := findMetaContent(doc, "property", "og:image")
+	if ogImage != "" {
+		return ogImage
+	}
+
+	// Try Twitter image
+	twitterImage := findMetaContent(doc, "name", "twitter:image")
+	if twitterImage != "" {
+		return twitterImage
+	}
+
+	// Try regular meta image
+	metaImage := findMetaContent(doc, "name", "image")
+	if metaImage != "" {
+		return metaImage
+	}
+
+	return "" // No image found
+}
+
+// findMetaContent looks for a meta tag with the specified attribute and value
+// and returns its content attribute
+func findMetaContent(doc *html.Node, attrName, attrValue string) string {
+	var content string
+
+	var crawler func(*html.Node)
+	crawler = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "meta" {
+			// Check if this meta tag has the attribute we're looking for
+			var hasAttr bool
+			var contentAttr string
+
+			for _, attr := range n.Attr {
+				if attr.Key == attrName && attr.Val == attrValue {
+					hasAttr = true
+				}
+				if attr.Key == "content" {
+					contentAttr = attr.Val
+				}
+			}
+
+			if hasAttr && contentAttr != "" {
+				content = contentAttr
+				return
+			}
+		}
+
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			if content == "" { // Only continue if we haven't found it yet
+				crawler(c)
+			}
+		}
+	}
+
+	crawler(doc)
+	return content
 }

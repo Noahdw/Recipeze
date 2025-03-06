@@ -2,9 +2,10 @@
 INSERT INTO recipes (
     url,
     name,
-    description
+    description,
+    image_url
 ) VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4
 )
 RETURNING id;
 

@@ -1,10 +1,14 @@
+Goal: Single place for a individual/family to share the recipes they use.
+
+Built using gomponents + htmx.
+
 
 ```
 Recipeze
+├─ .air.toml
 ├─ .editorconfig
 ├─ .golangci.yml
 ├─ Dockerfile
-├─ LICENSE
 ├─ Makefile
 ├─ README.md
 ├─ cmd
@@ -13,28 +17,43 @@ Recipeze
 ├─ docker-compose.yml
 ├─ go.mod
 ├─ go.sum
-├─ html
-│  ├─ common.go
-│  ├─ home.go
-│  └─ recipes.go
 ├─ http
-│  ├─ home.go
+│  ├─ recipehandler.go
 │  ├─ routes.go
 │  ├─ server.go
 │  ├─ server_test.go
 │  └─ static.go
-├─ logo.png
 ├─ model
 │  └─ model.go
+├─ package.json
 ├─ public
 │  ├─ images
 │  │  └─ logo.png
-│  └─ scripts
-│     ├─ app.js
-│     └─ htmx.js
+│  ├─ scripts
+│  │  ├─ app.js
+│  │  └─ htmx.js
+│  └─ styles
+│     └─ app.css
+├─ repo
+│  ├─ db.go
+│  ├─ models.go
+│  ├─ query.sql.go
+│  └─ util.go
+├─ run.sh
+├─ service
+│  └─ recipe.go
 ├─ sql
-│  ├─ database.go
-│  └─ database_test.go
-└─ tailwind.css
+│  ├─ query.sql
+│  └─ schema.sql
+├─ sqlc.yml
+├─ tailwind.css
+├─ tailwindcss
+├─ tmp
+│  ├─ app
+│  └─ build-errors.log
+└─ ui
+   ├─ common.go
+   ├─ home.go
+   └─ recipes.go
 
 ```

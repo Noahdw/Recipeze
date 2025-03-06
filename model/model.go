@@ -6,4 +6,5 @@ type Recipe struct {
 	Name        string
 	Url         string
 	Description string
+	ImageURL    string
 }
