@@ -3,24 +3,24 @@ package service
 import (
 	"context"
 	"recipeze/model"
-	"recipeze/repository"
+	"recipeze/repo"
 )
 
 type Recipe struct {
-	db *repository.Queries
+	db *repo.Queries
 }
 
-func NewRecipeService(db *repository.Queries) *Recipe {
+func NewRecipeService(db *repo.Queries) *Recipe {
 	return &Recipe{
 		db: db,
 	}
 }
 
 func (r *Recipe) AddRecipe(ctx context.Context, url, name, description string) (id int, err error) {
-	args := repository.AddRecipeParams{
-		Url:         repository.StringPG(url),
-		Name:        repository.StringPG(name),
-		Description: repository.StringPG(description),
+	args := repo.AddRecipeParams{
+		Url:         repo.StringPG(url),
+		Name:        repo.StringPG(name),
+		Description: repo.StringPG(description),
 	}
 	recipeid, err := r.db.AddRecipe(ctx, args)
 	if err != nil {
@@ -69,4 +69,9 @@ func (r *Recipe) DeleteRecipeByID(ctx context.Context, id int) error {
 		return err
 	}
 	return nil
+}
+
+func (r *Recipe) UpdateRecipe(ctx context.Context, args repo.UpdateRecipeParams) error {
+	err := r.db.UpdateRecipe(ctx, args)
+	return err
 }

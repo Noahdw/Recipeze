@@ -12,12 +12,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"recipeze/repository"
+	"recipeze/repo"
 )
 
 // Server holds dependencies for the HTTP server as well as the HTTP server itself.
 type Server struct {
-	db     *repository.Queries
+	db     *repo.Queries
 	log    *slog.Logger
 	mux    chi.Router
 	server *http.Server
@@ -36,7 +36,7 @@ func NewServer(opts NewServerOptions) *Server {
 	mux := chi.NewMux()
 
 	return &Server{
-		db:  repository.New(opts.DB),
+		db:  repo.New(opts.DB),
 		log: opts.Log,
 		mux: mux,
 		server: &http.Server{

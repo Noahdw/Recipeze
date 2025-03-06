@@ -3,7 +3,7 @@
 //   sqlc v1.28.0
 // source: query.sql
 
-package repository
+package repo
 
 import (
 	"context"
@@ -89,4 +89,30 @@ func (q *Queries) GetRecipes(ctx context.Context) ([]Recipe, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateRecipe = `-- name: UpdateRecipe :exec
+UPDATE recipes 
+SET 
+    url = $1,
+    name = $2,
+    description = $3
+WHERE id = $4
+`
+
+type UpdateRecipeParams struct {
+	Url         pgtype.Text
+	Name        pgtype.Text
+	Description pgtype.Text
+	ID          int32
+}
+
+func (q *Queries) UpdateRecipe(ctx context.Context, arg UpdateRecipeParams) error {
+	_, err := q.db.Exec(ctx, updateRecipe,
+		arg.Url,
+		arg.Name,
+		arg.Description,
+		arg.ID,
+	)
+	return err
 }

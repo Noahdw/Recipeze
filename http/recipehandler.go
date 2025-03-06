@@ -11,6 +11,7 @@ import (
 	. "maragu.dev/gomponents"
 
 	"recipeze/model"
+	"recipeze/repo"
 	"recipeze/service"
 	"recipeze/ui"
 
@@ -101,7 +102,6 @@ func Home(r chi.Router, s *service.Recipe) {
 			}
 			return false
 		}
-		// make a recursive call to your function
 		processAllProduct(doc)
 
 		id, err := s.AddRecipe(r.Context(), url, title, "")
@@ -109,14 +109,31 @@ func Home(r chi.Router, s *service.Recipe) {
 			slog.Error("Could not add recipe", "error", err.Error())
 			return nil, err
 		}
+		println(id)
 
 		recipes, err := s.GetRecipes(r.Context())
 		if err != nil {
+			slog.Error("Could not get recipes", "error", err.Error())
 			return nil, err
 		}
 
-		// Return just the updated list
-		return ui.RecipeListPartial(recipes, id), nil
+		recipe, err := s.GetRecipeByID(r.Context(), int32(id))
+
+		if err != nil {
+			slog.Error("Could not get recipe", "error", err.Error())
+			return nil, err
+		}
+		mainContent := ui.RecipeListPartial(recipes, id)
+
+		// Second part updates another element out-of-band
+		listContent := Div(
+			ID("recipe-detail"),
+			Attr("hx-swap-oob", "true"), // Out-of-band swap
+			ui.RecipeDetailPartial(recipe),
+		)
+
+		// Combine both parts in the response
+		return Div(mainContent, listContent), nil
 	}))
 
 	r.Get("/recipes/new", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
@@ -164,8 +181,73 @@ func Home(r chi.Router, s *service.Recipe) {
 		return Div(mainContent, listContent), nil
 	}))
 
+	r.Get("/recipes/update/{id}", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
+		idstr := chi.URLParam(r, "id")
+
+		id, err := strconv.Atoi(idstr)
+		if err != nil {
+			return nil, err
+		}
+		recipe, err := s.GetRecipeByID(r.Context(), int32(id))
+		if err != nil {
+			return nil, err
+		}
+
+		return ui.RecipeEditPartial(recipe), nil
+	}))
+
+	r.Post("/recipes/update/{id}", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
+		idstr := chi.URLParam(r, "id")
+
+		id, err := strconv.Atoi(idstr)
+		if err != nil {
+			return nil, err
+		}
+
+		// Parse the form
+		err = r.ParseForm()
+		if err != nil {
+			return nil, err
+		}
+
+		// Update the recipe in the database
+		err = s.UpdateRecipe(r.Context(), repo.UpdateRecipeParams{
+			ID:          int32(id),
+			Name:        repo.StringPG(r.FormValue("name")),
+			Url:         repo.StringPG(r.FormValue("url")),
+			Description: repo.StringPG(r.FormValue("description")),
+		})
+		if err != nil {
+			slog.Error("Could not update recipe", "ID", id)
+			return nil, err
+		}
+
+		recipe, err := s.GetRecipeByID(r.Context(), int32(id))
+		if err != nil {
+			return nil, err
+		}
+
+		mainContent := ui.RecipeDetailPartial(recipe)
+		recipes, err := s.GetRecipes(r.Context())
+		if err != nil {
+			slog.Error("Could not get recipes")
+			return nil, err
+		}
+
+		// Second part updates another element out-of-band
+		listContent := Div(
+			ID("recipe-list"),
+			Attr("hx-swap-oob", "true"), // Out-of-band swap
+			ui.RecipeListPartial(recipes, id),
+		)
+
+		// Combine both parts in the response
+		return Div(mainContent, listContent), nil
+	}))
+
 	r.Get("/empty", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
 		// Clear modal
 		return nil, nil
 	}))
+
 }
