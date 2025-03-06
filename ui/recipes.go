@@ -2,7 +2,7 @@ package ui
 
 import (
 	"fmt"
-	"time"
+	"log/slog"
 
 	. "maragu.dev/gomponents"
 	"maragu.dev/gomponents-heroicons/v3/solid"
@@ -13,17 +13,24 @@ import (
 )
 
 // RecipePage shows the main recipe listing with a detail view
-func RecipePage(props PageProps, recipes []model.Recipe, now time.Time) Node {
+func RecipePage(props PageProps, recipes []model.Recipe) Node {
+	defaultId := 0
+	if len(recipes) > 0 {
+		defaultId = recipes[0].ID
+	}
+	slog.Info("id ", "id", defaultId)
+
 	props.Title = "Recipes"
+
 	return page(props,
 		ModalContainer(),
 		Div(Class("flex flex-col md:flex-row gap-6"),
 			// Left column - Recipe List
-			Div(Class("w-full md:w-1/3"),
+			Div(Class("w-full md:w-1/3 "),
 				H1(Class("text-2xl font-bold mb-4"), Text("Recipes")),
 				AddRecipeButton(),
 				Div(ID("recipe-list"),
-					RecipeListPartial(recipes, now),
+					RecipeListPartial(recipes, defaultId),
 				),
 			),
 			// Right column - Recipe Detail
@@ -38,17 +45,23 @@ func RecipePage(props PageProps, recipes []model.Recipe, now time.Time) Node {
 }
 
 // RecipeListPartial shows the selectable recipe list
-func RecipeListPartial(recipes []model.Recipe, now time.Time) Node {
+func RecipeListPartial(recipes []model.Recipe, selectedID int) Node {
 	if len(recipes) == 0 {
 		return P(Text("No recipes yet. Add one to get started!"))
 	}
 
 	return Ul(Class("divide-y divide-gray-200"),
 		Map(recipes, func(recipe model.Recipe) Node {
+			var buttonClass string
+			if recipe.ID == selectedID {
+				buttonClass = "w-full text-left cursor-pointer bg-blue-100 hover:bg-blue-200 py-1 px-2 rounded font-medium"
+			} else {
+				buttonClass = "w-full text-left cursor-pointer hover:bg-gray-100 py-1 px-2 rounded"
+			}
 			return Li(
 				Class("py-2 px-3"),
 				Button(
-					Class("w-full text-left cursor-pointer hover:bg-gray-100 py-1 px-2 rounded"),
+					Class(buttonClass),
 					hx.Get(fmt.Sprintf("/recipes/%d", recipe.ID)),
 					hx.Target("#recipe-detail"),
 					Text(recipe.Name),
@@ -74,10 +87,22 @@ func RecipeDetailPartial(recipe *model.Recipe) Node {
 				Text("View Original Recipe"),
 			),
 
+			// Edit Button
+			Button(
+				Class("inline-flex items-center justify-center rounded-md transition-colors bg-blue-500 hover:bg-blue-600 cursor-pointer"),
+				hx.Post(fmt.Sprintf("/recipes/%d", recipe.ID)),
+				hx.Target("#recipe-detail"),
+				Attr("aria-label", "Edit recipe"),
+				Span(
+					Class("flex items-center justify-center p-2"),
+					solid.PencilSquare(Class("text-white h-5 w-5")),
+				),
+			),
+
 			// Delete Button
 			Button(
 				Class("inline-flex items-center justify-center rounded-md transition-colors bg-red-300 hover:bg-red-600 cursor-pointer"),
-				hx.Delete(fmt.Sprintf("/recipes/%d", recipe.ID)),
+				hx.Post(fmt.Sprintf("/recipes/delete/%d", recipe.ID)),
 				hx.Target("#recipe-detail"),
 				Attr("aria-label", "Delete recipe"),
 				Span(
@@ -138,7 +163,7 @@ func RecipeModal() Node {
 				Class("flex justify-between items-center mb-4"),
 				H3(Class("text-lg font-medium"), Text("Add New Recipe")),
 				Button(
-					Class("text-gray-400 hover:text-gray-500"),
+					Class("text-gray-400 hover:text-gray-500 cursor-pointer"),
 					hx.Get("/empty"),
 					hx.Target("#modal-container"),
 					hx.Swap("innerHTML"),
@@ -162,7 +187,7 @@ func RecipeModal() Node {
 					Class("mt-6 flex justify-end"),
 					Button(
 						Type("button"),
-						Class("mr-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded"),
+						Class("mr-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded cursor-pointer"),
 						hx.Get("/empty"),
 						hx.Target("#modal-container"),
 						hx.Swap("innerHTML"),
@@ -170,7 +195,7 @@ func RecipeModal() Node {
 					),
 					Button(
 						Type("submit"),
-						Class("bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"),
+						Class("bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer"),
 						Text("Save Recipe"),
 					),
 				),

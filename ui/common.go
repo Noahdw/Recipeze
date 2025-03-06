@@ -42,7 +42,7 @@ func page(props PageProps, children ...Node) Node {
 			Script(Src(appJSPath), Defer()),
 		},
 		Body: []Node{Class("bg-indigo-600 text-gray-900"),
-			Div(Class("min-h-screen flex flex-col justify-between bg-white"),
+			Div(Class("min-h-screen flex flex-col justify-between bg-gray-200"),
 				header(),
 				Div(Class("grow"),
 					container(true, true,

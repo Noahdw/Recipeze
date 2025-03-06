@@ -8,11 +8,10 @@ package repository
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const addRecipe = `-- name: AddRecipe :execresult
+const addRecipe = `-- name: AddRecipe :one
 INSERT INTO recipes (
     url,
     name,
@@ -20,6 +19,7 @@ INSERT INTO recipes (
 ) VALUES (
     $1, $2, $3
 )
+RETURNING id
 `
 
 type AddRecipeParams struct {
@@ -28,12 +28,24 @@ type AddRecipeParams struct {
 	Description pgtype.Text
 }
 
-func (q *Queries) AddRecipe(ctx context.Context, arg AddRecipeParams) (pgconn.CommandTag, error) {
-	return q.db.Exec(ctx, addRecipe, arg.Url, arg.Name, arg.Description)
+func (q *Queries) AddRecipe(ctx context.Context, arg AddRecipeParams) (int32, error) {
+	row := q.db.QueryRow(ctx, addRecipe, arg.Url, arg.Name, arg.Description)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
+}
+
+const deleteRecipeByID = `-- name: DeleteRecipeByID :exec
+DELETE FROM recipes where id = $1
+`
+
+func (q *Queries) DeleteRecipeByID(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, deleteRecipeByID, id)
+	return err
 }
 
 const getRecipeByID = `-- name: GetRecipeByID :one
-select id, url, name, description, created_at from recipes where id = $1 LIMIT 1
+SELECT id, url, name, description, created_at from recipes WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetRecipeByID(ctx context.Context, id int32) (Recipe, error) {
@@ -50,7 +62,7 @@ func (q *Queries) GetRecipeByID(ctx context.Context, id int32) (Recipe, error) {
 }
 
 const getRecipes = `-- name: GetRecipes :many
-SELECT id, url, name, description, created_at from recipes
+SELECT id, url, name, description, created_at FROM recipes
 `
 
 func (q *Queries) GetRecipes(ctx context.Context) ([]Recipe, error) {

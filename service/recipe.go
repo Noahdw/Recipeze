@@ -16,17 +16,18 @@ func NewRecipeService(db *repository.Queries) *Recipe {
 	}
 }
 
-func (r *Recipe) AddRecipe(ctx context.Context, url, name, description string) error {
+func (r *Recipe) AddRecipe(ctx context.Context, url, name, description string) (id int, err error) {
 	args := repository.AddRecipeParams{
 		Url:         repository.StringPG(url),
 		Name:        repository.StringPG(name),
 		Description: repository.StringPG(description),
 	}
-	_, err := r.db.AddRecipe(ctx, args)
+	recipeid, err := r.db.AddRecipe(ctx, args)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+
+	return int(recipeid), nil
 }
 
 func (r *Recipe) GetRecipes(ctx context.Context) ([]model.Recipe, error) {
@@ -54,9 +55,18 @@ func (r *Recipe) GetRecipeByID(ctx context.Context, id int32) (*model.Recipe, er
 	}
 
 	recipe := &model.Recipe{
+		ID:   int(id),
 		Name: recipePG.Name.String,
 		Url:  recipePG.Url.String,
 	}
 
 	return recipe, nil
+}
+
+func (r *Recipe) DeleteRecipeByID(ctx context.Context, id int) error {
+	err := r.db.DeleteRecipeByID(ctx, int32(id))
+	if err != nil {
+		return err
+	}
+	return nil
 }
