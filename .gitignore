@@ -3,3 +3,5 @@
 /package.json
 /public/styles/app.css
 /tailwindcss
+/tmp/app
+/tmp/build-errors.log
