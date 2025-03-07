@@ -14,5 +14,14 @@ type Recipe struct {
 	Name        pgtype.Text
 	Description pgtype.Text
 	ImageUrl    pgtype.Text
+	Likes       pgtype.Int4
 	CreatedAt   pgtype.Timestamptz
+}
+
+type User struct {
+	ID        int32
+	Email     string
+	Name      pgtype.Text
+	ImageUrl  pgtype.Text
+	CreatedAt pgtype.Timestamptz
 }

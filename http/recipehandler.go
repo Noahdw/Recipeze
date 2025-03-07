@@ -22,6 +22,13 @@ import (
 	ghttp "maragu.dev/gomponents/http"
 )
 
+type meta struct {
+	title       string
+	description string
+	siteName    string
+	imageURL    string
+}
+
 func RouteRecipe(r chi.Router, s *service.Recipe) {
 	// Get single recipe (for detail view)
 	r.Get("/recipes/{id}", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
@@ -81,36 +88,13 @@ func RouteRecipe(r chi.Router, s *service.Recipe) {
 			// ehh, maybe do nothing?
 		}
 		defer r.Body.Close()
-		var title string
-		var processAllProduct func(*html.Node) bool
-		processAllProduct = func(n *html.Node) bool {
-			if n.Type == html.ElementNode && n.Data == "title" {
-				// process the Product details within each <li> element
-				if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
-					// Extract the title text
-					title = n.FirstChild.Data
-					return true
-				}
 
-			}
-			// traverse the child nodes
-			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				ret := processAllProduct(c)
-				if ret {
-					return true
-				}
-			}
-			return false
-		}
-		processAllProduct(doc)
-		imgURL := extractMetaImage(doc)
-
-		id, err := s.AddRecipe(r.Context(), url, title, "", imgURL)
+		meta := extractMeta(doc)
+		id, err := s.AddRecipe(r.Context(), url, meta.title, meta.description, meta.imageURL)
 		if err != nil {
 			slog.Error("Could not add recipe", "error", err.Error())
 			return nil, err
 		}
-		println(id)
 
 		recipes, err := s.GetRecipes(r.Context())
 		if err != nil {
@@ -254,26 +238,30 @@ func RouteRecipe(r chi.Router, s *service.Recipe) {
 }
 
 // extractMetaImage finds the og:image or similar meta tag from an HTML document
-func extractMetaImage(doc *html.Node) string {
+func extractMeta(doc *html.Node) meta {
+	var m meta
 	// Try to find Open Graph image first
 	ogImage := findMetaContent(doc, "property", "og:image")
 	if ogImage != "" {
-		return ogImage
+		m.imageURL = ogImage
 	}
 
 	// Try Twitter image
 	twitterImage := findMetaContent(doc, "name", "twitter:image")
 	if twitterImage != "" {
-		return twitterImage
+		m.imageURL = twitterImage
 	}
 
 	// Try regular meta image
 	metaImage := findMetaContent(doc, "name", "image")
 	if metaImage != "" {
-		return metaImage
+		m.imageURL = metaImage
 	}
 
-	return "" // No image found
+	m.title = findMetaContent(doc, "property", "og:title")
+	m.description = findMetaContent(doc, "name", "description")
+	m.siteName = findMetaContent(doc, "property", "og:site_name")
+	return m
 }
 
 // findMetaContent looks for a meta tag with the specified attribute and value

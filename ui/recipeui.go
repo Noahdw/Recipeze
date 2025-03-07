@@ -51,24 +51,27 @@ func RecipeListPartial(recipes []model.Recipe, selectedID int) Node {
 		return P(Text("No recipes yet. Add one to get started!"))
 	}
 
-	return Ul(Class("divide-y divide-gray-200"),
-		Map(recipes, func(recipe model.Recipe) Node {
-			var buttonClass string
-			if recipe.ID == selectedID {
-				buttonClass = "w-full text-left cursor-pointer bg-blue-100 hover:bg-blue-200 py-1 px-2 rounded font-medium"
-			} else {
-				buttonClass = "w-full text-left cursor-pointer hover:bg-gray-100 py-1 px-2 rounded"
-			}
-			return Li(
-				Class("py-1"),
-				Button(
-					Class(buttonClass),
-					hx.Get(fmt.Sprintf("/recipes/%d", recipe.ID)),
-					hx.Target("#recipe-detail"),
-					Text(recipe.Name),
-				),
-			)
-		}),
+	return Div(
+		Class("max-h-[60vh] overflow-y-auto"), // Make scrollable
+		Ul(Class("divide-y divide-gray-200"),
+			Map(recipes, func(recipe model.Recipe) Node {
+				var buttonClass string
+				if recipe.ID == selectedID {
+					buttonClass = "w-full text-left cursor-pointer bg-blue-100 hover:bg-blue-200 py-1 px-2 rounded font-medium"
+				} else {
+					buttonClass = "w-full text-left cursor-pointer hover:bg-gray-100 py-1 px-2 rounded"
+				}
+				return Li(
+					Class("py-1"),
+					Button(
+						Class(buttonClass),
+						hx.Get(fmt.Sprintf("/recipes/%d", recipe.ID)),
+						hx.Target("#recipe-detail"),
+						Text(recipe.Name),
+					),
+				)
+			}),
+		),
 	)
 }
 
@@ -120,7 +123,7 @@ func RecipeDetailPartial(recipe *model.Recipe) Node {
 		),
 		Img(
 			Src(recipe.ImageURL),
-			Class("w-full max-h-64 object-cover rounded-lg"),
+			Class("w-full object-cover rounded-lg"),
 			Loading("lazy"),
 		),
 	)
@@ -229,6 +232,8 @@ func AddRecipeButton() Node {
 		hx.Get("/recipes/new"),
 		hx.Target("#modal-container"),
 		hx.Swap("innerHTML"),
+		// focus the URL input after the modal is loaded
+		Attr("hx-on::after-request", "setTimeout(() => document.getElementById('recipe-url').focus(), 10)"),
 		Text("Add Recipe"),
 	)
 }

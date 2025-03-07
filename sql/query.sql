@@ -25,3 +25,21 @@ SET
     name = $2,
     description = $3
 WHERE id = $4;
+
+-- name: AddUser :one
+INSERT INTO users (
+    email
+) VALUES (
+    $1
+)
+RETURNING id;
+
+-- name: GetUserByID :one
+SELECT * from users WHERE id = $1 LIMIT 1;
+
+-- name: UpdateUser :exec
+UPDATE users 
+SET 
+    image_url = $1,
+    name = $2
+WHERE id = $3;

@@ -42,6 +42,22 @@ func (q *Queries) AddRecipe(ctx context.Context, arg AddRecipeParams) (int32, er
 	return id, err
 }
 
+const addUser = `-- name: AddUser :one
+INSERT INTO users (
+    email
+) VALUES (
+    $1
+)
+RETURNING id
+`
+
+func (q *Queries) AddUser(ctx context.Context, email string) (int32, error) {
+	row := q.db.QueryRow(ctx, addUser, email)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
+}
+
 const deleteRecipeByID = `-- name: DeleteRecipeByID :exec
 DELETE FROM recipes where id = $1
 `
@@ -52,7 +68,7 @@ func (q *Queries) DeleteRecipeByID(ctx context.Context, id int32) error {
 }
 
 const getRecipeByID = `-- name: GetRecipeByID :one
-SELECT id, url, name, description, image_url, created_at from recipes WHERE id = $1 LIMIT 1
+SELECT id, url, name, description, image_url, likes, created_at from recipes WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetRecipeByID(ctx context.Context, id int32) (Recipe, error) {
@@ -64,13 +80,14 @@ func (q *Queries) GetRecipeByID(ctx context.Context, id int32) (Recipe, error) {
 		&i.Name,
 		&i.Description,
 		&i.ImageUrl,
+		&i.Likes,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getRecipes = `-- name: GetRecipes :many
-SELECT id, url, name, description, image_url, created_at FROM recipes
+SELECT id, url, name, description, image_url, likes, created_at FROM recipes
 `
 
 func (q *Queries) GetRecipes(ctx context.Context) ([]Recipe, error) {
@@ -88,6 +105,7 @@ func (q *Queries) GetRecipes(ctx context.Context) ([]Recipe, error) {
 			&i.Name,
 			&i.Description,
 			&i.ImageUrl,
+			&i.Likes,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -98,6 +116,23 @@ func (q *Queries) GetRecipes(ctx context.Context) ([]Recipe, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, email, name, image_url, created_at from users WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.ImageUrl,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const updateRecipe = `-- name: UpdateRecipe :exec
@@ -123,5 +158,24 @@ func (q *Queries) UpdateRecipe(ctx context.Context, arg UpdateRecipeParams) erro
 		arg.Description,
 		arg.ID,
 	)
+	return err
+}
+
+const updateUser = `-- name: UpdateUser :exec
+UPDATE users 
+SET 
+    image_url = $1,
+    name = $2
+WHERE id = $3
+`
+
+type UpdateUserParams struct {
+	ImageUrl pgtype.Text
+	Name     pgtype.Text
+	ID       int32
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
+	_, err := q.db.Exec(ctx, updateUser, arg.ImageUrl, arg.Name, arg.ID)
 	return err
 }

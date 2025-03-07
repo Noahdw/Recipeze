@@ -104,13 +104,13 @@ func CategoryCard(text string, href string) Node {
 func HeroSection(targetId string) Node {
 	return Div(Class("flex flex-col items-center text-center py-16 px-6 max-w-4xl mx-auto"), ID(targetId),
 		H1(Class("text-4xl font-bold text-gray-900"),
-			Text("Save your favorite recipes in one click"),
+			Text("Save recipes instantly"),
 		),
 		P(Class("mt-6 text-xl text-gray-600"),
-			Text("No more lost bookmarks or screenshots. Just grab recipes you love and share them with your family."),
+			Text("Store and share recipes without the clutter."),
 		),
 		Div(Class("mt-10 flex flex-wrap gap-4 justify-center"),
-			PrimaryButton("Get cooking", "/login", targetId),
+			PrimaryButton("Start", "/login", targetId),
 		),
 	)
 }
@@ -118,11 +118,11 @@ func HeroSection(targetId string) Node {
 // How it works section component
 func HowItWorksSection() Node {
 	return RoundedSection("bg-gray-50",
-		SectionHeader("How it works (it's super simple)"),
+		SectionHeader("How it works"),
 		Div(Class("mt-12 grid grid-cols-1 gap-10 md:grid-cols-3"),
-			StepItem("1", "Find a tasty recipe", "See something yummy online? Just copy the URL and we'll save it."),
-			StepItem("2", "Invite your family", "Got family recipes to share? Invite everyone to contribute their favorites."),
-			StepItem("3", "Cook & enjoy", "Access your recipes anywhere - perfect for grocery shopping or kitchen disasters."),
+			StepItem("1", "Find a recipe", "Copy a URL and we'll save it."),
+			StepItem("2", "Share access", "Share access with others."),
+			StepItem("3", "Use anywhere", "Access from anywhere."),
 		),
 	)
 }
@@ -130,12 +130,12 @@ func HowItWorksSection() Node {
 // Categories section component
 func CategoriesSection() Node {
 	return SectionContainer("", "",
-		SectionHeader("What's cooking?"),
+		SectionHeader("Categories"),
 		Div(Class("mt-12 grid grid-cols-2 gap-6 md:grid-cols-4"),
-			CategoryCard("Breakfast Faves", "/recipes?category=breakfast"),
-			CategoryCard("Dinner Ideas", "/recipes?category=dinner"),
-			CategoryCard("Sweet Treats", "/recipes?category=desserts"),
-			CategoryCard("Holiday Magic", "/recipes?category=holidays"),
+			CategoryCard("Breakfast", "/recipes?category=breakfast"),
+			CategoryCard("Dinner", "/recipes?category=dinner"),
+			CategoryCard("Desserts", "/recipes?category=desserts"),
+			CategoryCard("Holiday", "/recipes?category=holidays"),
 		),
 	)
 }
@@ -144,12 +144,12 @@ func CategoriesSection() Node {
 func TestimonialSection() Node {
 	return Div(Class("py-16 bg-indigo-50 rounded-3xl mx-4 mb-12 md:mx-8"),
 		Div(Class("max-w-3xl mx-auto px-6 text-center"),
-			SectionHeader("People are loving it"),
+			SectionHeader("User feedback"),
 			P(Class("mt-10 italic text-xl text-gray-700"),
-				Text("\"Finally found a way to save Grandma's secret sauce recipe where the whole family can access it. No more texting 'hey, how much garlic goes in that thing again?'\""),
+				Text("\"Centralized place for family recipes. No more texting for ingredient lists.\""),
 			),
 			P(Class("mt-4 font-medium text-gray-900"),
-				Text("— The Johnson Family"),
+				Text("— Johnson Family"),
 			),
 		),
 	)
