@@ -21,6 +21,7 @@ func (s *Server) setupRoutes() {
 		})
 
 		recipeService := service.NewRecipeService(s.db)
-		Home(r, recipeService)
+		RouteRecipe(r, recipeService)
+		RouteHome(r)
 	})
 }

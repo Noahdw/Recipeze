@@ -22,7 +22,7 @@ import (
 	ghttp "maragu.dev/gomponents/http"
 )
 
-func Home(r chi.Router, s *service.Recipe) {
+func RouteRecipe(r chi.Router, s *service.Recipe) {
 	// Get single recipe (for detail view)
 	r.Get("/recipes/{id}", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
 		idstr := chi.URLParam(r, "id")
