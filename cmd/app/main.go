@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"maragu.dev/env"
 
+	"recipeze/appconfig"
 	"recipeze/http"
 )
 
@@ -25,7 +26,7 @@ func main() {
 	}
 }
 
-type Config struct {
+type DBConfig struct {
 	Host     string
 	Port     string
 	User     string
@@ -43,7 +44,9 @@ func start(log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
-	dbConfig := Config{
+	appconfig.Initialize()
+
+	dbConfig := DBConfig{
 		Host:     os.Getenv("DB_HOST"),
 		Port:     os.Getenv("DB_PORT"),
 		User:     os.Getenv("DB_USER"),

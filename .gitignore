@@ -5,3 +5,4 @@
 /tailwindcss
 /tmp/app
 /tmp/build-errors.log
+.env
