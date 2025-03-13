@@ -43,3 +43,14 @@ SET
     image_url = $1,
     name = $2
 WHERE id = $3;
+
+-- name: CreateLoginAuthToken :exec
+INSERT INTO auth_tokens (
+    token,
+    user_id
+) VALUES (
+    $1, $2
+);
+
+-- name: GetLoginAuthToken :one
+SELECT * FROM auth_tokens WHERE token = $1 LIMIT 1; 

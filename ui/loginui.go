@@ -37,7 +37,7 @@ func SignupForm(targetId string) Node {
 
 			Button(
 				Type("submit"),
-				Class("w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"),
+				Class("w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer"),
 				Text("Send Magic Link"),
 			),
 

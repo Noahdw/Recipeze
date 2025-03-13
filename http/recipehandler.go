@@ -259,6 +259,10 @@ func extractMeta(doc *html.Node) meta {
 	}
 
 	m.title = findMetaContent(doc, "property", "og:title")
+	if m.title == "" {
+		// TODO: Look for non meta title
+		m.title = "recipe"
+	}
 	m.description = findMetaContent(doc, "name", "description")
 	m.siteName = findMetaContent(doc, "property", "og:site_name")
 	return m

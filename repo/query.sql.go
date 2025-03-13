@@ -58,6 +58,25 @@ func (q *Queries) AddUser(ctx context.Context, email string) (int32, error) {
 	return id, err
 }
 
+const createLoginAuthToken = `-- name: CreateLoginAuthToken :exec
+INSERT INTO auth_tokens (
+    token,
+    user_id
+) VALUES (
+    $1, $2
+)
+`
+
+type CreateLoginAuthTokenParams struct {
+	Token  string
+	UserID pgtype.Int4
+}
+
+func (q *Queries) CreateLoginAuthToken(ctx context.Context, arg CreateLoginAuthTokenParams) error {
+	_, err := q.db.Exec(ctx, createLoginAuthToken, arg.Token, arg.UserID)
+	return err
+}
+
 const deleteRecipeByID = `-- name: DeleteRecipeByID :exec
 DELETE FROM recipes where id = $1
 `
@@ -65,6 +84,25 @@ DELETE FROM recipes where id = $1
 func (q *Queries) DeleteRecipeByID(ctx context.Context, id int32) error {
 	_, err := q.db.Exec(ctx, deleteRecipeByID, id)
 	return err
+}
+
+const getLoginAuthToken = `-- name: GetLoginAuthToken :one
+SELECT id, token, user_id, consumed_at, created_at, expires_at, creator_ip FROM auth_tokens WHERE token = $1 LIMIT 1
+`
+
+func (q *Queries) GetLoginAuthToken(ctx context.Context, token string) (AuthToken, error) {
+	row := q.db.QueryRow(ctx, getLoginAuthToken, token)
+	var i AuthToken
+	err := row.Scan(
+		&i.ID,
+		&i.Token,
+		&i.UserID,
+		&i.ConsumedAt,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.CreatorIp,
+	)
+	return i, err
 }
 
 const getRecipeByID = `-- name: GetRecipeByID :one

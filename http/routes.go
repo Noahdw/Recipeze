@@ -21,7 +21,8 @@ func (s *Server) setupRoutes() {
 		})
 
 		recipeService := service.NewRecipeService(s.db)
+		authService := service.NewAuthService(s.db)
 		RouteRecipe(r, recipeService)
-		RouteHome(r)
+		RouteHome(r, authService)
 	})
 }

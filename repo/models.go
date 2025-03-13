@@ -8,6 +8,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AuthToken struct {
+	ID         int32
+	Token      string
+	UserID     pgtype.Int4
+	ConsumedAt pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+	ExpiresAt  pgtype.Timestamptz
+	CreatorIp  pgtype.Text
+}
+
 type Recipe struct {
 	ID          int32
 	Url         pgtype.Text

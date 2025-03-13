@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"recipeze/appconfig"
+	"recipeze/service"
 	"recipeze/ui"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -19,7 +20,7 @@ import (
 	ghttp "maragu.dev/gomponents/http"
 )
 
-func RouteHome(r chi.Router) {
+func RouteHome(r chi.Router, s *service.Auth) {
 	r.Get("/", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
 		return ui.HomePage(ui.PageProps{}), nil
 	}))
@@ -47,7 +48,12 @@ func RouteHome(r chi.Router) {
 			ToAddresses: []string{email},
 		}
 
-		magicLink := appconfig.Config.URL + "/recipes"
+		token, err := s.CreateRegistrationToken(r.Context())
+		if err != nil {
+			return nil, err
+		}
+
+		magicLink := appconfig.Config.URL + "/auth/verify?token=" + token
 
 		params := &sesv2.SendEmailInput{
 			Content:              createLoginEmail("App", magicLink),
