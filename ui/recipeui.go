@@ -55,22 +55,29 @@ func RecipeListPartial(recipes []model.Recipe, selectedID int) Node {
 		Class("max-h-[60vh] overflow-y-auto"), // Make scrollable
 		Ul(Class("divide-y divide-gray-200"),
 			Map(recipes, func(recipe model.Recipe) Node {
-				var buttonClass string
-				if recipe.ID == selectedID {
-					buttonClass = "w-full text-left cursor-pointer bg-blue-100 hover:bg-blue-200 py-1 px-2 rounded font-medium"
-				} else {
-					buttonClass = "w-full text-left cursor-pointer hover:bg-gray-100 py-1 px-2 rounded"
-				}
-				return Li(
-					Class("py-1"),
-					Button(
-						Class(buttonClass),
-						hx.Get(fmt.Sprintf("/recipes/%d", recipe.ID)),
-						hx.Target("#recipe-detail"),
-						Text(recipe.Name),
-					),
-				)
+				return RecipeListItemPartial(&recipe, selectedID)
 			}),
+		),
+	)
+}
+
+func RecipeListItemPartial(recipe *model.Recipe, selectedID int) Node {
+	var buttonClass string
+	if recipe.ID == selectedID {
+		buttonClass = "w-full text-left cursor-pointer bg-blue-100 hover:bg-blue-200 py-1 px-2 rounded font-medium active-recipe"
+	} else {
+		buttonClass = "w-full text-left cursor-pointer hover:bg-gray-100 py-1 px-2 rounded inactive-recipe"
+	}
+	id := fmt.Sprintf("recipe-list-item-%d", recipe.ID)
+	return Li(
+		Class("py-1"),
+		Button(
+			Class(buttonClass), ID(id),
+			hx.Get(fmt.Sprintf("/recipes/%d", recipe.ID)),
+			hx.Target("#recipe-detail"),
+			// Add class operations to clear previous selection
+			Attr("hx-on::before-request", "document.querySelectorAll('.active-recipe').forEach(el => { el.classList.remove('bg-blue-100', 'hover:bg-blue-200', 'font-medium', 'active-recipe'); el.classList.add('hover:bg-gray-100', 'inactive-recipe'); })"),
+			Text(recipe.Name),
 		),
 	)
 }

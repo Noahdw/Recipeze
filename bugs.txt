@@ -1,2 +1,2 @@
 1. P3. food.com images are not found. https://www.food.com/recipe/bow-ties-with-roasted-eggplant-and-three-cheeses-86903
-2. P1. List scrollbar jumps to beginning when selecting a list item.
+2. P1. FIXED - List scrollbar jumps to beginning when selecting a list item.

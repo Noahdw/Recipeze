@@ -3,6 +3,7 @@ package http
 import (
 	//"context"
 
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -46,13 +47,13 @@ func RouteRecipe(r chi.Router, s *service.Recipe) {
 
 		mainContent := ui.RecipeDetailPartial(recipe)
 
-		recipes, err := s.GetRecipes(r.Context())
-
+		//recipes, err := s.GetRecipes(r.Context())
+		listItemID := fmt.Sprintf("recipe-list-item-%d", recipe.ID)
 		// Second part updates another element out-of-band
 		listContent := Div(
-			ID("recipe-list"),
+			ID(listItemID),
 			Attr("hx-swap-oob", "true"), // Out-of-band swap
-			ui.RecipeListPartial(recipes, id),
+			ui.RecipeListItemPartial(recipe, id),
 		)
 
 		// Combine both parts in the response
