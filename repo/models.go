@@ -11,7 +11,7 @@ import (
 type AuthToken struct {
 	ID         int32
 	Token      string
-	UserID     pgtype.Int4
+	Email      string
 	ConsumedAt pgtype.Timestamptz
 	CreatedAt  pgtype.Timestamptz
 	ExpiresAt  pgtype.Timestamptz

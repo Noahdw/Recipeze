@@ -48,7 +48,7 @@ func RouteHome(r chi.Router, s *service.Auth) {
 			ToAddresses: []string{email},
 		}
 
-		token, err := s.CreateRegistrationToken(r.Context())
+		token, err := s.CreateRegistrationToken(r.Context(), email)
 		if err != nil {
 			return nil, err
 		}
@@ -71,6 +71,55 @@ func RouteHome(r chi.Router, s *service.Auth) {
 
 		slog.Info("sending magic link", "email", email)
 		return ui.SignupForm("#modal-container"), nil
+	}))
+
+	r.Get("/auth/verify", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
+		token := r.URL.Query().Get("token")
+		email, err := s.VerifyRegistrationToken(r.Context(), token)
+		if err != nil {
+			slog.Error("Could not verify email", "err", err.Error())
+			url := appconfig.Config.URL
+			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+			return nil, nil
+		}
+
+		slog.Info("Verified email")
+
+		_, err = s.GetUser(r.Context(), email)
+		if err != nil {
+			// Assume account does not exist
+			return ui.CreateAccountPage(ui.PageProps{}), nil
+		}
+
+		url := appconfig.Config.URL + "/recipes"
+		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+
+		return nil, nil
+	}))
+
+	// hmm
+	r.Post("/auth/verify", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
+		token := r.URL.Query().Get("token")
+		email, err := s.VerifyRegistrationToken(r.Context(), token)
+		if err != nil {
+			slog.Error("Could not verify email", "err", err.Error())
+			url := appconfig.Config.URL
+			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+			return nil, nil
+		}
+
+		slog.Info("Verified email")
+
+		_, err = s.GetUser(r.Context(), email)
+		if err != nil {
+			// Assume account does not exist
+			return ui.CreateAccountPage(ui.PageProps{}), nil
+		}
+
+		url := appconfig.Config.URL + "/recipes"
+		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+
+		return nil, nil
 	}))
 }
 

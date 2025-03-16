@@ -34,8 +34,8 @@ INSERT INTO users (
 )
 RETURNING id;
 
--- name: GetUserByID :one
-SELECT * from users WHERE id = $1 LIMIT 1;
+-- name: GetUser :one
+SELECT * from users WHERE email = $1 LIMIT 1;
 
 -- name: UpdateUser :exec
 UPDATE users 
@@ -47,10 +47,16 @@ WHERE id = $3;
 -- name: CreateLoginAuthToken :exec
 INSERT INTO auth_tokens (
     token,
-    user_id
+    email
 ) VALUES (
     $1, $2
 );
 
 -- name: GetLoginAuthToken :one
-SELECT * FROM auth_tokens WHERE token = $1 LIMIT 1; 
+SELECT * FROM auth_tokens WHERE token = $1 LIMIT 1;
+
+-- name: ConsumeLoginAuthToken :exec
+UPDATE auth_tokens
+SET
+    consumed_at = $1
+WHERE id = $2;

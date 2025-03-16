@@ -58,22 +58,39 @@ func (q *Queries) AddUser(ctx context.Context, email string) (int32, error) {
 	return id, err
 }
 
+const consumeLoginAuthToken = `-- name: ConsumeLoginAuthToken :exec
+UPDATE auth_tokens
+SET
+    consumed_at = $1
+WHERE id = $2
+`
+
+type ConsumeLoginAuthTokenParams struct {
+	ConsumedAt pgtype.Timestamptz
+	ID         int32
+}
+
+func (q *Queries) ConsumeLoginAuthToken(ctx context.Context, arg ConsumeLoginAuthTokenParams) error {
+	_, err := q.db.Exec(ctx, consumeLoginAuthToken, arg.ConsumedAt, arg.ID)
+	return err
+}
+
 const createLoginAuthToken = `-- name: CreateLoginAuthToken :exec
 INSERT INTO auth_tokens (
     token,
-    user_id
+    email
 ) VALUES (
     $1, $2
 )
 `
 
 type CreateLoginAuthTokenParams struct {
-	Token  string
-	UserID pgtype.Int4
+	Token string
+	Email string
 }
 
 func (q *Queries) CreateLoginAuthToken(ctx context.Context, arg CreateLoginAuthTokenParams) error {
-	_, err := q.db.Exec(ctx, createLoginAuthToken, arg.Token, arg.UserID)
+	_, err := q.db.Exec(ctx, createLoginAuthToken, arg.Token, arg.Email)
 	return err
 }
 
@@ -87,7 +104,7 @@ func (q *Queries) DeleteRecipeByID(ctx context.Context, id int32) error {
 }
 
 const getLoginAuthToken = `-- name: GetLoginAuthToken :one
-SELECT id, token, user_id, consumed_at, created_at, expires_at, creator_ip FROM auth_tokens WHERE token = $1 LIMIT 1
+SELECT id, token, email, consumed_at, created_at, expires_at, creator_ip FROM auth_tokens WHERE token = $1 LIMIT 1
 `
 
 func (q *Queries) GetLoginAuthToken(ctx context.Context, token string) (AuthToken, error) {
@@ -96,7 +113,7 @@ func (q *Queries) GetLoginAuthToken(ctx context.Context, token string) (AuthToke
 	err := row.Scan(
 		&i.ID,
 		&i.Token,
-		&i.UserID,
+		&i.Email,
 		&i.ConsumedAt,
 		&i.CreatedAt,
 		&i.ExpiresAt,
@@ -156,12 +173,12 @@ func (q *Queries) GetRecipes(ctx context.Context) ([]Recipe, error) {
 	return items, nil
 }
 
-const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, name, image_url, created_at from users WHERE id = $1 LIMIT 1
+const getUser = `-- name: GetUser :one
+SELECT id, email, name, image_url, created_at from users WHERE email = $1 LIMIT 1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByID, id)
+func (q *Queries) GetUser(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUser, email)
 	var i User
 	err := row.Scan(
 		&i.ID,

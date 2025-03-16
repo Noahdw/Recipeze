@@ -8,3 +8,9 @@ type Recipe struct {
 	Description string
 	ImageURL    string
 }
+
+type User struct {
+	ID    int
+	Name  string
+	Email string
+}
