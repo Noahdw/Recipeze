@@ -1,5 +1,5 @@
 // Package http has the [Server] and HTTP handlers.
-package http
+package handler
 
 import (
 	"context"

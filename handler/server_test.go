@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"maragu.dev/is"
-
-	"recipeze/http"
 )
 
 func TestServer_Start(t *testing.T) {

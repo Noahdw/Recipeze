@@ -1,4 +1,4 @@
-package http
+package handler
 
 import (
 	"log/slog"

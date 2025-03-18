@@ -13,7 +13,6 @@ import (
 	"maragu.dev/env"
 
 	"recipeze/appconfig"
-	"recipeze/http"
 )
 
 func main() {

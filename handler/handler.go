@@ -1,4 +1,4 @@
-package http
+package handler
 
 // Handler is to make interacting with gomponents and requests more ergonomic
 
