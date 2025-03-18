@@ -16,6 +16,23 @@ func NewRecipeService(db *repo.Queries) *Recipe {
 	}
 }
 
+type RecipeService interface {
+	// AddRecipe creates a new recipe and returns its ID
+	AddRecipe(ctx context.Context, url, name, description string, imgURL string) (id int, err error)
+
+	// GetRecipes retrieves all recipes
+	GetRecipes(ctx context.Context) ([]model.Recipe, error)
+
+	// GetRecipeByID retrieves a recipe by its ID
+	GetRecipeByID(ctx context.Context, id int32) (*model.Recipe, error)
+
+	// DeleteRecipeByID removes a recipe by its ID
+	DeleteRecipeByID(ctx context.Context, id int) error
+
+	// UpdateRecipe modifies an existing recipe
+	UpdateRecipe(ctx context.Context, args repo.UpdateRecipeParams) error
+}
+
 func (r *Recipe) AddRecipe(ctx context.Context, url, name, description string, imgURL string) (id int, err error) {
 	args := repo.AddRecipeParams{
 		Url:         repo.StringPG(url),

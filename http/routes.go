@@ -8,7 +8,6 @@ import (
 	"maragu.dev/httph"
 )
 
-// setupRoutes for the server.
 func (s *Server) setupRoutes() {
 	s.mux.Group(func(r chi.Router) {
 		r.Use(middleware.Compress(5))
@@ -22,7 +21,8 @@ func (s *Server) setupRoutes() {
 
 		recipeService := service.NewRecipeService(s.db)
 		authService := service.NewAuthService(s.db)
-		RouteRecipe(r, recipeService)
-		RouteHome(r, authService)
+		handler := NewHandler(authService, recipeService)
+		RouteRecipe(r, handler)
+		RouteHome(r, handler)
 	})
 }

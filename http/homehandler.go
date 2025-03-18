@@ -1,69 +1,102 @@
 package http
 
 import (
-	//"context"
-
-	"fmt"
 	"log/slog"
 	"net/http"
 	"recipeze/appconfig"
-	"recipeze/service"
+
 	"recipeze/ui"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	awsc "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 	"github.com/go-chi/chi/v5"
 	. "maragu.dev/gomponents"
-
-	ghttp "maragu.dev/gomponents/http"
 )
 
-func RouteHome(r chi.Router, s *service.Auth) {
-	r.Get("/", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
+func RouteHome(r chi.Router, handler *handler) {
+	r.Get("/", handler.Adapt(func(ctx RequestContext) (Node, error) {
 		return ui.HomePage(ui.PageProps{}), nil
 	}))
 
-	r.Get("/login", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
+	r.Get("/login", handler.Adapt(func(ctx RequestContext) (Node, error) {
 		return ui.SignupForm("#modal-container"), nil
 	}))
 
-	r.Post("/auth/magic-link", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		err := r.ParseForm()
+	r.Post("/auth/magic-link", handler.sendMagicLinkToEmail())
+
+	r.Get("/auth/verify", handler.authenticateByMagicLink())
+}
+
+func (h *handler) authenticateByMagicLink() http.HandlerFunc {
+	return h.Adapt(func(ctx RequestContext) (Node, error) {
+		token := ctx.QueryParam("token")
+		email, err := h.VerifyRegistrationToken(ctx.Context(), token, ctx.r)
 		if err != nil {
-			return nil, err
+			slog.Error("Could not verify email", "err", err.Error())
+			url := appconfig.Config.URL
+			http.Redirect(ctx.w, ctx.r, url, http.StatusTemporaryRedirect)
+			return nil, nil
 		}
-		email := r.FormValue("email")
-		config, err := awsc.LoadDefaultConfig(r.Context(),
+
+		slog.Info("Verified email")
+
+		_, err = h.GetUser(ctx.Context(), email)
+		if err != nil {
+			// Assume account does not exist
+			return ui.CreateAccountPage(ui.PageProps{}), nil
+		}
+
+		url := appconfig.Config.URL + "/recipes"
+		http.Redirect(ctx.w, ctx.r, url, http.StatusTemporaryRedirect)
+
+		return nil, nil
+	})
+}
+
+func (h *handler) sendMagicLinkToEmail() http.HandlerFunc {
+	return h.Adapt(func(ctx RequestContext) (Node, error) {
+
+		config, err := awsc.LoadDefaultConfig(ctx.Context(),
 			awsc.WithRegion("us-east-2"),
 		)
+
 		if err != nil {
 			// TODO
 			slog.Error("Could not load email config")
 			return nil, err
 		}
 
+		// Get email user entered
+		err = ctx.r.ParseForm()
+		if err != nil {
+			return nil, err
+		}
+		email := ctx.r.FormValue("email")
+
 		desination := &types.Destination{
 			ToAddresses: []string{email},
 		}
 
-		token, err := s.CreateRegistrationToken(r.Context(), email)
+		// Use users email to create a auth token
+		// Auth token will allow use to verify their email
+		token, err := h.CreateRegistrationToken(ctx.Context(), email)
 		if err != nil {
 			return nil, err
 		}
 
+		// Construct the magic link to be used for verification
 		magicLink := appconfig.Config.URL + "/auth/verify?token=" + token
 
 		params := &sesv2.SendEmailInput{
-			Content:              createLoginEmail("App", magicLink),
+			Content:              createLoginEmail(appconfig.AppName(), magicLink),
 			ConfigurationSetName: new(string),
 			Destination:          desination,
 			FromEmailAddress:     &appconfig.Config.FromEmail,
 		}
 
 		client := sesv2.NewFromConfig(config)
-		_, err = client.SendEmail(r.Context(), params)
+		_, err = client.SendEmail(ctx.Context(), params)
 		if err != nil {
 			slog.Error("Could not send email", "to", email, "err", err.Error())
 			return nil, err
@@ -71,151 +104,5 @@ func RouteHome(r chi.Router, s *service.Auth) {
 
 		slog.Info("sending magic link", "email", email)
 		return ui.SignupForm("#modal-container"), nil
-	}))
-
-	r.Get("/auth/verify", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		token := r.URL.Query().Get("token")
-		email, err := s.VerifyRegistrationToken(r.Context(), token)
-		if err != nil {
-			slog.Error("Could not verify email", "err", err.Error())
-			url := appconfig.Config.URL
-			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
-			return nil, nil
-		}
-
-		slog.Info("Verified email")
-
-		_, err = s.GetUser(r.Context(), email)
-		if err != nil {
-			// Assume account does not exist
-			return ui.CreateAccountPage(ui.PageProps{}), nil
-		}
-
-		url := appconfig.Config.URL + "/recipes"
-		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
-
-		return nil, nil
-	}))
-
-	// hmm
-	r.Post("/auth/verify", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		token := r.URL.Query().Get("token")
-		email, err := s.VerifyRegistrationToken(r.Context(), token)
-		if err != nil {
-			slog.Error("Could not verify email", "err", err.Error())
-			url := appconfig.Config.URL
-			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
-			return nil, nil
-		}
-
-		slog.Info("Verified email")
-
-		_, err = s.GetUser(r.Context(), email)
-		if err != nil {
-			// Assume account does not exist
-			return ui.CreateAccountPage(ui.PageProps{}), nil
-		}
-
-		url := appconfig.Config.URL + "/recipes"
-		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
-
-		return nil, nil
-	}))
-}
-
-func createLoginEmail(appName, magicLink string) *types.EmailContent {
-	htmlBody := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login to %s</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .container {
-            background-color: #f9f9f9;
-            border-radius: 5px;
-            padding: 20px;
-        }
-        .button {
-            display: inline-block;
-            background-color: #007bff;
-            color: white;
-            text-decoration: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            margin: 20px 0;
-        }
-        .footer {
-            margin-top: 30px;
-            font-size: 12px;
-            color: #666666;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Login to %s</h2>
-        <p>Hello,</p>
-        <p>Click the button below to securely log in to your account. This link will expire in 15 minutes.</p>
-        <!-- Email clients often have better support for table-based buttons -->
-        <table cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0;">
-            <tr>
-                <td align="center" bgcolor="#007bff" style="border-radius: 5px;">
-                    <a href="%s" target="_blank" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: white; text-decoration: none; border-radius: 5px; font-family: Arial, sans-serif;">Login Now</a>
-                </td>
-            </tr>
-        </table>
-        <p>If you didn't request this login link, you can safely ignore this email.</p>
-        <p>If the button above doesn't work, copy and paste this URL into your browser:</p>
-        <p>%s</p>
-    </div>
-    <div class="footer">
-        <p>This is an automated message from %s. Please do not reply to this email.</p>
-    </div>
-</body>
-</html>
-`, appName, appName, magicLink, magicLink, appName)
-
-	textBody := fmt.Sprintf(`
-Login to %s
-
-Hello,
-
-Click the link below to securely log in to your account. This link will expire in 15 minutes.
-
-%s
-
-If you didn't request this login link, you can safely ignore this email.
-
-This is an automated message from %s. Please do not reply to this email.
-`, appName, magicLink, appName)
-
-	emailContent := &types.EmailContent{
-		Simple: &types.Message{
-			Body: &types.Body{
-				Html: &types.Content{
-					Charset: aws.String("UTF-8"),
-					Data:    aws.String(htmlBody),
-				},
-				Text: &types.Content{
-					Charset: aws.String("UTF-8"),
-					Data:    aws.String(textBody),
-				},
-			},
-			Subject: &types.Content{
-				Charset: aws.String("UTF-8"),
-				Data:    aws.String(fmt.Sprintf("Login to %s", appName)),
-			},
-		},
-	}
-	return emailContent
+	})
 }

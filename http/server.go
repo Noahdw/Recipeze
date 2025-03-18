@@ -54,6 +54,7 @@ func NewServer(opts NewServerOptions) *Server {
 func (s *Server) Start() error {
 	s.log.Info("Starting http server", "address", "0.0.0.0:8080")
 
+	// Important - maps paths to handlers
 	s.setupRoutes()
 
 	if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

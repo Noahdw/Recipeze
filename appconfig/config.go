@@ -31,3 +31,7 @@ func Initialize() {
 		slog.Error("Invalid env set for app config")
 	}
 }
+
+func AppName() string {
+	return "Recipeze"
+}
