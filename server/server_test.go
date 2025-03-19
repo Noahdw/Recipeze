@@ -1,9 +1,10 @@
-package handler_test
+package server_test
 
 import (
 	"io"
 	http2 "net/http"
-	"recipeze/handler"
+
+	"recipeze/server"
 	"strings"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ import (
 
 func TestServer_Start(t *testing.T) {
 	t.Run("can start and stop server", func(t *testing.T) {
-		s := handler.NewServer(handler.NewServerOptions{})
+		s := server.NewServer(server.NewServerOptions{})
 
 		go func() {
 			is.NotError(t, s.Start())
