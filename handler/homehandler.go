@@ -14,24 +14,24 @@ import (
 	. "maragu.dev/gomponents"
 )
 
-func RouteHome(r chi.Router, handler *handler) {
-	r.Get("/", handler.Adapt(func(ctx RequestContext) (Node, error) {
+func (h *handler) RouteHome(r chi.Router) {
+	r.Get("/", h.adapt(func(ctx requestContext) (Node, error) {
 		return ui.HomePage(ui.PageProps{}), nil
 	}))
 
-	r.Get("/login", handler.Adapt(func(ctx RequestContext) (Node, error) {
+	r.Get("/login", h.adapt(func(ctx requestContext) (Node, error) {
 		return ui.SignupForm("#modal-container"), nil
 	}))
 
-	r.Post("/auth/magic-link", handler.sendMagicLinkToEmail())
+	r.Post("/auth/magic-link", h.sendMagicLinkToEmail())
 
-	r.Get("/auth/verify", handler.authenticateByMagicLink())
+	r.Get("/auth/verify", h.authenticateByMagicLink())
 }
 
 func (h *handler) authenticateByMagicLink() http.HandlerFunc {
-	return h.Adapt(func(ctx RequestContext) (Node, error) {
-		token := ctx.QueryParam("token")
-		email, err := h.VerifyRegistrationToken(ctx.Context(), token, ctx.r)
+	return h.adapt(func(ctx requestContext) (Node, error) {
+		token := ctx.queryParam("token")
+		email, err := h.VerifyRegistrationToken(ctx.context(), token, ctx.r)
 		if err != nil {
 			slog.Error("Could not verify email", "err", err.Error())
 			url := appconfig.Config.URL
@@ -41,7 +41,7 @@ func (h *handler) authenticateByMagicLink() http.HandlerFunc {
 
 		slog.Info("Verified email")
 
-		_, err = h.GetUser(ctx.Context(), email)
+		_, err = h.GetUser(ctx.context(), email)
 		if err != nil {
 			// Assume account does not exist
 			return ui.CreateAccountPage(ui.PageProps{}), nil
@@ -55,9 +55,9 @@ func (h *handler) authenticateByMagicLink() http.HandlerFunc {
 }
 
 func (h *handler) sendMagicLinkToEmail() http.HandlerFunc {
-	return h.Adapt(func(ctx RequestContext) (Node, error) {
+	return h.adapt(func(ctx requestContext) (Node, error) {
 
-		config, err := awsc.LoadDefaultConfig(ctx.Context(),
+		config, err := awsc.LoadDefaultConfig(ctx.context(),
 			awsc.WithRegion("us-east-2"),
 		)
 
@@ -80,7 +80,7 @@ func (h *handler) sendMagicLinkToEmail() http.HandlerFunc {
 
 		// Use users email to create a auth token
 		// Auth token will allow use to verify their email
-		token, err := h.CreateRegistrationToken(ctx.Context(), email)
+		token, err := h.CreateRegistrationToken(ctx.context(), email)
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +96,7 @@ func (h *handler) sendMagicLinkToEmail() http.HandlerFunc {
 		}
 
 		client := sesv2.NewFromConfig(config)
-		_, err = client.SendEmail(ctx.Context(), params)
+		_, err = client.SendEmail(ctx.context(), params)
 		if err != nil {
 			slog.Error("Could not send email", "to", email, "err", err.Error())
 			return nil, err

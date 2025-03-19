@@ -29,13 +29,13 @@ type meta struct {
 	imageURL    string
 }
 
-func RouteRecipe(r chi.Router, handler *handler) {
+func (h *handler) RouteRecipe(r chi.Router) {
 	// Get single recipe (for detail view)
-	r.Get("/recipes/{id}", handler.getRecipeDetailView())
+	r.Get("/recipes/{id}", h.getRecipeDetailView())
 
 	// Get all recipes (main page)
 	r.Get("/recipes", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		recipes, err := handler.GetRecipes(r.Context())
+		recipes, err := h.GetRecipes(r.Context())
 		if err != nil {
 			return nil, err
 		}
@@ -50,14 +50,14 @@ func RouteRecipe(r chi.Router, handler *handler) {
 	}))
 
 	// Add new recipe
-	r.Post("/recipes", handler.addNewRecipe())
+	r.Post("/recipes", h.addNewRecipe())
 
 	r.Get("/recipes/new", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
 		// Show modal
 		return ui.RecipeModal(), nil
 	}))
 
-	r.Post("/recipes/delete/{id}", handler.deleteRecipe())
+	r.Post("/recipes/delete/{id}", h.deleteRecipe())
 
 	r.Get("/recipes/update/{id}", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
 		idstr := chi.URLParam(r, "id")
@@ -66,7 +66,7 @@ func RouteRecipe(r chi.Router, handler *handler) {
 		if err != nil {
 			return nil, err
 		}
-		recipe, err := handler.GetRecipeByID(r.Context(), int32(id))
+		recipe, err := h.GetRecipeByID(r.Context(), int32(id))
 		if err != nil {
 			return nil, err
 		}
@@ -74,7 +74,7 @@ func RouteRecipe(r chi.Router, handler *handler) {
 		return ui.RecipeEditPartial(recipe), nil
 	}))
 
-	r.Post("/recipes/update/{id}", handler.updateRecipeDetails())
+	r.Post("/recipes/update/{id}", h.updateRecipeDetails())
 
 	r.Get("/empty", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
 		// Clear modal

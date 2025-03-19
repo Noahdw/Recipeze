@@ -13,6 +13,7 @@ import (
 	"maragu.dev/env"
 
 	"recipeze/appconfig"
+	"recipeze/server"
 )
 
 func main() {
@@ -72,7 +73,7 @@ func start(log *slog.Logger) error {
 	slog.Info("Connected to DB")
 
 	// Set up the HTTP server, injecting the database and logger
-	s := http.NewServer(http.NewServerOptions{
+	s := server.NewServer(server.NewServerOptions{
 		DB:  dbpool,
 		Log: log,
 	})

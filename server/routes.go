@@ -1,6 +1,7 @@
-package handler
+package server
 
 import (
+	"recipeze/handler"
 	"recipeze/service"
 
 	"github.com/go-chi/chi/v5"
@@ -8,7 +9,7 @@ import (
 	"maragu.dev/httph"
 )
 
-func (s *Server) setupRoutes() {
+func (s *server) SetupRoutes() {
 	s.mux.Group(func(r chi.Router) {
 		r.Use(middleware.Compress(5))
 
@@ -21,8 +22,6 @@ func (s *Server) setupRoutes() {
 
 		recipeService := service.NewRecipeService(s.db)
 		authService := service.NewAuthService(s.db)
-		handler := NewHandler(authService, recipeService)
-		RouteRecipe(r, handler)
-		RouteHome(r, handler)
+		handler.SetupRouting(r, authService, recipeService)
 	})
 }

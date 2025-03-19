@@ -7,13 +7,14 @@ import (
 	"net/http"
 	"recipeze/service"
 
+	"github.com/go-chi/chi/v5"
 	. "maragu.dev/gomponents"
 	ghttp "maragu.dev/gomponents/http"
 )
 
-type AdaptFunc = func(ctx RequestContext) (Node, error)
+type adaptFunc = func(ctx requestContext) (Node, error)
 
-type RequestContext struct {
+type requestContext struct {
 	w http.ResponseWriter
 	r *http.Request
 }
@@ -23,16 +24,18 @@ type handler struct {
 	service.RecipeService
 }
 
-func NewHandler(auth service.AuthService, recipe service.RecipeService) *handler {
-	return &handler{
+func SetupRouting(r chi.Router, auth service.AuthService, recipe service.RecipeService) {
+	h := &handler{
 		AuthService:   auth,
 		RecipeService: recipe,
 	}
+	h.RouteHome(r)
+	h.RouteRecipe(r)
 }
 
-func (h *handler) Adapt(fn AdaptFunc) http.HandlerFunc {
+func (h *handler) adapt(fn adaptFunc) http.HandlerFunc {
 	return ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		ctx := RequestContext{
+		ctx := requestContext{
 			w: w,
 			r: r,
 		}
@@ -40,10 +43,10 @@ func (h *handler) Adapt(fn AdaptFunc) http.HandlerFunc {
 	})
 }
 
-func (c *RequestContext) Context() context.Context {
+func (c *requestContext) context() context.Context {
 	return c.r.Context()
 }
 
-func (c *RequestContext) QueryParam(param string) string {
+func (c *requestContext) queryParam(param string) string {
 	return c.r.URL.Query().Get(param)
 }

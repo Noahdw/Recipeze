@@ -1,5 +1,5 @@
-// Package http has the [Server] and HTTP handlers.
-package handler
+// Package http has the [server] and HTTP handlers.
+package server
 
 import (
 	"context"
@@ -15,8 +15,8 @@ import (
 	"recipeze/repo"
 )
 
-// Server holds dependencies for the HTTP server as well as the HTTP server itself.
-type Server struct {
+// server holds dependencies for the HTTP server as well as the HTTP server itself.
+type server struct {
 	db     *repo.Queries
 	log    *slog.Logger
 	mux    chi.Router
@@ -28,14 +28,14 @@ type NewServerOptions struct {
 	Log *slog.Logger
 }
 
-func NewServer(opts NewServerOptions) *Server {
+func NewServer(opts NewServerOptions) *server {
 	if opts.Log == nil {
 		opts.Log = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 
 	mux := chi.NewMux()
 
-	return &Server{
+	return &server{
 		db:  repo.New(opts.DB),
 		log: opts.Log,
 		mux: mux,
@@ -51,11 +51,11 @@ func NewServer(opts NewServerOptions) *Server {
 }
 
 // Start the server and set up routes.
-func (s *Server) Start() error {
+func (s *server) Start() error {
 	s.log.Info("Starting http server", "address", "0.0.0.0:8080")
 
 	// Important - maps paths to handlers
-	s.setupRoutes()
+	s.SetupRoutes()
 
 	if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
@@ -64,7 +64,7 @@ func (s *Server) Start() error {
 }
 
 // Stop the server gracefully.
-func (s *Server) Stop() error {
+func (s *server) Stop() error {
 	s.log.Info("Stopping http server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
