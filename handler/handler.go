@@ -24,11 +24,15 @@ type handler struct {
 	service.RecipeService
 }
 
-func SetupRouting(r chi.Router, auth service.AuthService, recipe service.RecipeService) {
-	h := &handler{
+func NewHandler(auth service.AuthService, recipe service.RecipeService) *handler {
+	return &handler{
 		AuthService:   auth,
 		RecipeService: recipe,
 	}
+}
+
+func InitRouting(r chi.Router, auth service.AuthService, recipe service.RecipeService) {
+	h := NewHandler(auth, recipe)
 	h.RouteHome(r)
 	h.RouteRecipe(r)
 }
