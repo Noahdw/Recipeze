@@ -13,17 +13,21 @@ import (
 
 const addRecipe = `-- name: AddRecipe :one
 INSERT INTO recipes (
+    created_by,
+    group_id,
     url,
     name,
     description,
     image_url
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, $5, $6
 )
 RETURNING id
 `
 
 type AddRecipeParams struct {
+	CreatedBy   int32
+	GroupID     int32
 	Url         pgtype.Text
 	Name        pgtype.Text
 	Description pgtype.Text
@@ -32,6 +36,8 @@ type AddRecipeParams struct {
 
 func (q *Queries) AddRecipe(ctx context.Context, arg AddRecipeParams) (int32, error) {
 	row := q.db.QueryRow(ctx, addRecipe,
+		arg.CreatedBy,
+		arg.GroupID,
 		arg.Url,
 		arg.Name,
 		arg.Description,
@@ -48,35 +54,76 @@ INSERT INTO users (
 ) VALUES (
     $1
 )
-RETURNING id
+RETURNING id, email, name, image_url, created_at
 `
 
-func (q *Queries) AddUser(ctx context.Context, email string) (int32, error) {
+func (q *Queries) AddUser(ctx context.Context, email string) (User, error) {
 	row := q.db.QueryRow(ctx, addUser, email)
-	var id int32
-	err := row.Scan(&id)
-	return id, err
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.ImageUrl,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
-const consumeLoginAuthToken = `-- name: ConsumeLoginAuthToken :exec
-UPDATE auth_tokens
+const addUserToGroup = `-- name: AddUserToGroup :exec
+INSERT INTO group_users (
+    group_id,
+    user_id
+) VALUES (
+    $1, $2
+)
+`
+
+type AddUserToGroupParams struct {
+	GroupID int32
+	UserID  int32
+}
+
+func (q *Queries) AddUserToGroup(ctx context.Context, arg AddUserToGroupParams) error {
+	_, err := q.db.Exec(ctx, addUserToGroup, arg.GroupID, arg.UserID)
+	return err
+}
+
+const consumeRegistrationToken = `-- name: ConsumeRegistrationToken :exec
+UPDATE registration_tokens
 SET
     consumed_at = $1
 WHERE id = $2
 `
 
-type ConsumeLoginAuthTokenParams struct {
+type ConsumeRegistrationTokenParams struct {
 	ConsumedAt pgtype.Timestamptz
 	ID         int32
 }
 
-func (q *Queries) ConsumeLoginAuthToken(ctx context.Context, arg ConsumeLoginAuthTokenParams) error {
-	_, err := q.db.Exec(ctx, consumeLoginAuthToken, arg.ConsumedAt, arg.ID)
+func (q *Queries) ConsumeRegistrationToken(ctx context.Context, arg ConsumeRegistrationTokenParams) error {
+	_, err := q.db.Exec(ctx, consumeRegistrationToken, arg.ConsumedAt, arg.ID)
 	return err
 }
 
-const createLoginAuthToken = `-- name: CreateLoginAuthToken :exec
-INSERT INTO auth_tokens (
+const createGroup = `-- name: CreateGroup :one
+INSERT INTO groups (
+    name
+) VALUES (
+    $1
+)
+RETURNING id, name, created_at
+`
+
+func (q *Queries) CreateGroup(ctx context.Context, name pgtype.Text) (Group, error) {
+	row := q.db.QueryRow(ctx, createGroup, name)
+	var i Group
+	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	return i, err
+}
+
+const createRegistrationToken = `-- name: CreateRegistrationToken :exec
+INSERT INTO registration_tokens (
     token,
     email
 ) VALUES (
@@ -84,13 +131,13 @@ INSERT INTO auth_tokens (
 )
 `
 
-type CreateLoginAuthTokenParams struct {
+type CreateRegistrationTokenParams struct {
 	Token string
 	Email string
 }
 
-func (q *Queries) CreateLoginAuthToken(ctx context.Context, arg CreateLoginAuthTokenParams) error {
-	_, err := q.db.Exec(ctx, createLoginAuthToken, arg.Token, arg.Email)
+func (q *Queries) CreateRegistrationToken(ctx context.Context, arg CreateRegistrationTokenParams) error {
+	_, err := q.db.Exec(ctx, createRegistrationToken, arg.Token, arg.Email)
 	return err
 }
 
@@ -103,50 +150,12 @@ func (q *Queries) DeleteRecipeByID(ctx context.Context, id int32) error {
 	return err
 }
 
-const getLoginAuthToken = `-- name: GetLoginAuthToken :one
-SELECT id, token, email, consumed_at, created_at, expires_at, creator_ip FROM auth_tokens WHERE token = $1 LIMIT 1
+const getGroupRecipes = `-- name: GetGroupRecipes :many
+SELECT id, created_by, group_id, url, name, description, image_url, likes, created_at FROM recipes where group_id = $1
 `
 
-func (q *Queries) GetLoginAuthToken(ctx context.Context, token string) (AuthToken, error) {
-	row := q.db.QueryRow(ctx, getLoginAuthToken, token)
-	var i AuthToken
-	err := row.Scan(
-		&i.ID,
-		&i.Token,
-		&i.Email,
-		&i.ConsumedAt,
-		&i.CreatedAt,
-		&i.ExpiresAt,
-		&i.CreatorIp,
-	)
-	return i, err
-}
-
-const getRecipeByID = `-- name: GetRecipeByID :one
-SELECT id, url, name, description, image_url, likes, created_at from recipes WHERE id = $1 LIMIT 1
-`
-
-func (q *Queries) GetRecipeByID(ctx context.Context, id int32) (Recipe, error) {
-	row := q.db.QueryRow(ctx, getRecipeByID, id)
-	var i Recipe
-	err := row.Scan(
-		&i.ID,
-		&i.Url,
-		&i.Name,
-		&i.Description,
-		&i.ImageUrl,
-		&i.Likes,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const getRecipes = `-- name: GetRecipes :many
-SELECT id, url, name, description, image_url, likes, created_at FROM recipes
-`
-
-func (q *Queries) GetRecipes(ctx context.Context) ([]Recipe, error) {
-	rows, err := q.db.Query(ctx, getRecipes)
+func (q *Queries) GetGroupRecipes(ctx context.Context, groupID int32) ([]Recipe, error) {
+	rows, err := q.db.Query(ctx, getGroupRecipes, groupID)
 	if err != nil {
 		return nil, err
 	}
@@ -156,6 +165,8 @@ func (q *Queries) GetRecipes(ctx context.Context) ([]Recipe, error) {
 		var i Recipe
 		if err := rows.Scan(
 			&i.ID,
+			&i.CreatedBy,
+			&i.GroupID,
 			&i.Url,
 			&i.Name,
 			&i.Description,
@@ -173,12 +184,85 @@ func (q *Queries) GetRecipes(ctx context.Context) ([]Recipe, error) {
 	return items, nil
 }
 
-const getUser = `-- name: GetUser :one
+const getGroupUsers = `-- name: GetGroupUsers :many
+SELECT u.id, u.email, u.name, u.image_url, u.created_at 
+FROM users u
+JOIN group_users gu ON u.id = gu.user_id
+WHERE gu.group_id = $1
+`
+
+func (q *Queries) GetGroupUsers(ctx context.Context, groupID int32) ([]User, error) {
+	rows, err := q.db.Query(ctx, getGroupUsers, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.ImageUrl,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRecipeByID = `-- name: GetRecipeByID :one
+SELECT id, created_by, group_id, url, name, description, image_url, likes, created_at from recipes WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetRecipeByID(ctx context.Context, id int32) (Recipe, error) {
+	row := q.db.QueryRow(ctx, getRecipeByID, id)
+	var i Recipe
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedBy,
+		&i.GroupID,
+		&i.Url,
+		&i.Name,
+		&i.Description,
+		&i.ImageUrl,
+		&i.Likes,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getRegistrationToken = `-- name: GetRegistrationToken :one
+SELECT id, token, email, consumed_at, created_at, expires_at, creator_ip FROM registration_tokens WHERE token = $1 LIMIT 1
+`
+
+func (q *Queries) GetRegistrationToken(ctx context.Context, token string) (RegistrationToken, error) {
+	row := q.db.QueryRow(ctx, getRegistrationToken, token)
+	var i RegistrationToken
+	err := row.Scan(
+		&i.ID,
+		&i.Token,
+		&i.Email,
+		&i.ConsumedAt,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.CreatorIp,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, email, name, image_url, created_at from users WHERE email = $1 LIMIT 1
 `
 
-func (q *Queries) GetUser(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRow(ctx, getUser, email)
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -188,6 +272,67 @@ func (q *Queries) GetUser(ctx context.Context, email string) (User, error) {
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getUserRecipes = `-- name: GetUserRecipes :many
+SELECT id, created_by, group_id, url, name, description, image_url, likes, created_at FROM recipes where created_by = $1
+`
+
+func (q *Queries) GetUserRecipes(ctx context.Context, createdBy int32) ([]Recipe, error) {
+	rows, err := q.db.Query(ctx, getUserRecipes, createdBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Recipe
+	for rows.Next() {
+		var i Recipe
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedBy,
+			&i.GroupID,
+			&i.Url,
+			&i.Name,
+			&i.Description,
+			&i.ImageUrl,
+			&i.Likes,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUsersGroups = `-- name: GetUsersGroups :many
+SELECT groups.id, groups.name, groups.created_at 
+FROM groups
+JOIN group_users ON groups.id = group_users.user_id
+WHERE group_users.group_id = $1
+`
+
+func (q *Queries) GetUsersGroups(ctx context.Context, groupID int32) ([]Group, error) {
+	rows, err := q.db.Query(ctx, getUsersGroups, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Group
+	for rows.Next() {
+		var i Group
+		if err := rows.Scan(&i.ID, &i.Name, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateRecipe = `-- name: UpdateRecipe :exec

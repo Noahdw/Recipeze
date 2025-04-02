@@ -38,16 +38,6 @@ CREATE TABLE group_users (
     REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE group_recipes (
-    id SERIAL PRIMARY KEY,
-    group_id INT,
-    recipe_id INT,
-    CONSTRAINT fk_group FOREIGN KEY (group_id)
-    REFERENCES groups(id) ON DELETE CASCADE,
-    CONSTRAINT fk_recipe FOREIGN KEY (recipe_id)
-    REFERENCES recipes(id) ON DELETE CASCADE
-);
-
 CREATE TABLE registration_tokens (
     id SERIAL PRIMARY KEY,
     token TEXT NOT NULL UNIQUE,

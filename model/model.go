@@ -7,10 +7,16 @@ type Recipe struct {
 	Url         string
 	Description string
 	ImageURL    string
+	GroupID     int
 }
 
 type User struct {
 	ID    int
 	Name  string
 	Email string
+}
+
+type Group struct {
+	ID   int
+	Name string
 }

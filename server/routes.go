@@ -19,8 +19,8 @@ func (s *server) SetupRoutes() {
 			setupStaticAssets(r)
 		})
 
-		recipeService := service.NewRecipeService(s.db)
-		authService := service.NewAuthService(s.db)
+		recipeService := service.NewRecipeService(s.queries, s.db)
+		authService := service.NewAuthService(s.queries, s.db)
 
 		handler.InitRouting(r, authService, recipeService)
 	})

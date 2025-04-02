@@ -12,10 +12,7 @@ INSERT INTO recipes (
 RETURNING id;
 
 -- name: GetGroupRecipes :many 
-SELECT r.* 
-FROM recipes r
-JOIN group_recipes gr ON r.id = gr.recipe_id
-WHERE gr.group_id = $1;
+SELECT * FROM recipes where group_id = $1;
 
 -- name: GetUserRecipes :many
 SELECT * FROM recipes where created_by = $1;
@@ -40,13 +37,35 @@ INSERT INTO users (
 ) VALUES (
     $1
 )
-RETURNING id;
+RETURNING *;
+
+-- name: CreateGroup :one
+INSERT INTO groups (
+    name
+) VALUES (
+    $1
+)
+RETURNING *;
+
+-- name: AddUserToGroup :exec
+INSERT INTO group_users (
+    group_id,
+    user_id
+) VALUES (
+    $1, $2
+);
 
 -- name: GetGroupUsers :many
 SELECT u.* 
 FROM users u
 JOIN group_users gu ON u.id = gu.user_id
 WHERE gu.group_id = $1;
+
+-- name: GetUsersGroups :many
+SELECT groups.* 
+FROM groups
+JOIN group_users ON groups.id = group_users.user_id
+WHERE group_users.group_id = $1;
 
 -- name: GetUserByEmail :one
 SELECT * from users WHERE email = $1 LIMIT 1;

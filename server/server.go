@@ -17,10 +17,11 @@ import (
 
 // server holds dependencies for the HTTP server as well as the HTTP server itself.
 type server struct {
-	db     *repo.Queries
-	log    *slog.Logger
-	mux    chi.Router
-	server *http.Server
+	queries *repo.Queries
+	db      *pgxpool.Pool
+	log     *slog.Logger
+	mux     chi.Router
+	server  *http.Server
 }
 
 type NewServerOptions struct {
@@ -36,9 +37,10 @@ func NewServer(opts NewServerOptions) *server {
 	mux := chi.NewMux()
 
 	return &server{
-		db:  repo.New(opts.DB),
-		log: opts.Log,
-		mux: mux,
+		queries: repo.New(opts.DB),
+		db:      opts.DB,
+		log:     opts.Log,
+		mux:     mux,
 		server: &http.Server{
 			Addr:              ":8080",
 			Handler:           mux,

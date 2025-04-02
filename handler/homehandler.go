@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"recipeze/appconfig"
@@ -26,32 +27,6 @@ func (h *handler) RouteHome(r chi.Router) {
 	r.Post("/auth/magic-link", h.sendMagicLinkToEmail())
 
 	r.Get("/auth/verify", h.authenticateByMagicLink())
-}
-
-func (h *handler) authenticateByMagicLink() http.HandlerFunc {
-	return h.adapt(func(ctx requestContext) (Node, error) {
-		token := ctx.queryParam("token")
-		email, err := h.VerifyRegistrationToken(ctx.context(), token, ctx.r)
-		if err != nil {
-			slog.Error("Could not verify email", "err", err.Error())
-			url := appconfig.Config.URL
-			http.Redirect(ctx.w, ctx.r, url, http.StatusTemporaryRedirect)
-			return nil, nil
-		}
-
-		slog.Info("Verified email")
-
-		_, err = h.GetUser(ctx.context(), email)
-		if err != nil {
-			// Assume account does not exist
-			return ui.CreateAccountPage(ui.PageProps{}), nil
-		}
-
-		url := appconfig.Config.URL + "/recipes"
-		http.Redirect(ctx.w, ctx.r, url, http.StatusTemporaryRedirect)
-
-		return nil, nil
-	})
 }
 
 func (h *handler) sendMagicLinkToEmail() http.HandlerFunc {
@@ -104,5 +79,40 @@ func (h *handler) sendMagicLinkToEmail() http.HandlerFunc {
 
 		slog.Info("sending magic link", "email", email)
 		return ui.SignupForm("#modal-container"), nil
+	})
+}
+
+func (h *handler) authenticateByMagicLink() http.HandlerFunc {
+	return h.adapt(func(ctx requestContext) (Node, error) {
+		token := ctx.queryParam("token")
+		email, err := h.VerifyRegistrationToken(ctx.context(), token, ctx.r)
+		if err != nil {
+			slog.Error("Could not verify email", "err", err.Error())
+			url := appconfig.Config.URL
+			http.Redirect(ctx.w, ctx.r, url, http.StatusTemporaryRedirect)
+			return nil, nil
+		}
+
+		slog.Info("Verified email")
+
+		user, err := h.GetUser(ctx.context(), email)
+		if err != nil {
+			// Assume account does not exist
+			//return ui.CreateAccountPage(ui.PageProps{}), nil
+			user, err = h.CreateAccount(ctx.context(), email)
+			if err != nil {
+				return nil, err
+			}
+
+		}
+
+		groups, err := h.GetUserGroups(ctx.context(), user.ID)
+		if err != nil {
+			return nil, err
+		}
+		url := fmt.Sprintf("%s/recipes/%d", appconfig.Config.URL, groups[0].ID)
+		http.Redirect(ctx.w, ctx.r, url, http.StatusTemporaryRedirect)
+
+		return nil, nil
 	})
 }

@@ -4,15 +4,20 @@ import (
 	"context"
 	"recipeze/model"
 	"recipeze/repo"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	//"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Recipe struct {
-	db *repo.Queries
+	queries *repo.Queries
+	db      *pgxpool.Pool
 }
 
-func NewRecipeService(db *repo.Queries) *Recipe {
+func NewRecipeService(queries *repo.Queries, db *pgxpool.Pool) *Recipe {
 	return &Recipe{
-		db: db,
+		queries: queries,
+		db:      db,
 	}
 }
 
@@ -21,7 +26,7 @@ type RecipeService interface {
 	AddRecipe(ctx context.Context, url, name, description string, imgURL string) (id int, err error)
 
 	// GetRecipes retrieves all recipes
-	GetRecipes(ctx context.Context) ([]model.Recipe, error)
+	GetGroupRecipes(ctx context.Context, group_id int) ([]model.Recipe, error)
 
 	// GetRecipeByID retrieves a recipe by its ID
 	GetRecipeByID(ctx context.Context, id int32) (*model.Recipe, error)
@@ -40,7 +45,7 @@ func (r *Recipe) AddRecipe(ctx context.Context, url, name, description string, i
 		Description: repo.StringPG(description),
 		ImageUrl:    repo.StringPG(imgURL),
 	}
-	recipeid, err := r.db.AddRecipe(ctx, args)
+	recipeid, err := r.queries.AddRecipe(ctx, args)
 	if err != nil {
 		return 0, err
 	}
@@ -48,8 +53,8 @@ func (r *Recipe) AddRecipe(ctx context.Context, url, name, description string, i
 	return int(recipeid), nil
 }
 
-func (r *Recipe) GetRecipes(ctx context.Context) ([]model.Recipe, error) {
-	recipesPG, err := r.db.GetRecipes(ctx)
+func (r *Recipe) GetGroupRecipes(ctx context.Context, group_id int) ([]model.Recipe, error) {
+	recipesPG, err := r.queries.GetGroupRecipes(ctx, int32(group_id))
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +67,7 @@ func (r *Recipe) GetRecipes(ctx context.Context) ([]model.Recipe, error) {
 }
 
 func (r *Recipe) GetRecipeByID(ctx context.Context, id int32) (*model.Recipe, error) {
-	recipePG, err := r.db.GetRecipeByID(ctx, id)
+	recipePG, err := r.queries.GetRecipeByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +76,7 @@ func (r *Recipe) GetRecipeByID(ctx context.Context, id int32) (*model.Recipe, er
 }
 
 func (r *Recipe) DeleteRecipeByID(ctx context.Context, id int) error {
-	err := r.db.DeleteRecipeByID(ctx, int32(id))
+	err := r.queries.DeleteRecipeByID(ctx, int32(id))
 	if err != nil {
 		return err
 	}
@@ -79,7 +84,7 @@ func (r *Recipe) DeleteRecipeByID(ctx context.Context, id int) error {
 }
 
 func (r *Recipe) UpdateRecipe(ctx context.Context, args repo.UpdateRecipeParams) error {
-	err := r.db.UpdateRecipe(ctx, args)
+	err := r.queries.UpdateRecipe(ctx, args)
 	return err
 }
 
