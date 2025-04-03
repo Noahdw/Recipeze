@@ -30,41 +30,49 @@ type meta struct {
 }
 
 func (h *handler) RouteRecipe(r chi.Router) {
-	// Get single recipe (for detail view)
-	r.Get("/recipes/{id}", h.getRecipeDetailView())
-
 	// Get page for a group, including recipes
-	r.Get("/recipes/{group_id}", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		group_id, err := strconv.Atoi(chi.URLParam(r, "group_id"))
+	r.Get("/g/{group_id}/recipes", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
+		groupID, err := getGroupID(r)
 		if err != nil {
 			return nil, err
 		}
-		recipes, err := h.GetGroupRecipes(r.Context(), group_id)
+		recipes, err := h.GetGroupRecipes(r.Context(), groupID)
 		if err != nil {
 			return nil, err
 		}
 
 		// If HTMX request, return just the list
 		if hx.IsRequest(r.Header) {
-			return ui.RecipeListPartial(recipes, 0), nil
+			return ui.RecipeListPartial(recipes, 0, groupID), nil
 		}
 
 		// Otherwise return full page
-		return ui.RecipePage(ui.PageProps{}, recipes), nil
+		return ui.RecipePage(ui.PageProps{}, recipes, groupID), nil
 	}))
+
+	// Get single recipe (for detail view)
+	r.Get("/g/{group_id}/recipe/{recipe_id}", h.getRecipeDetailView())
 
 	// Add new recipe
-	r.Post("/recipes", h.addNewRecipe())
+	r.Post("/g/{group_id}/recipes", h.addNewRecipe())
 
-	r.Get("/recipes/new", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		// Show modal
-		return ui.RecipeModal(), nil
+	r.Get("/g/{group_id}/recipes/new", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
+		group_id, err := getGroupID(r)
+		if err != nil {
+			return nil, err
+		}
+		return ui.RecipeModal(group_id), nil
 	}))
 
-	r.Post("/recipes/delete/{recipe_id}", h.deleteRecipe())
+	r.Post("/g/{group_id}/recipes/delete/{recipe_id}", h.deleteRecipe())
 
-	r.Get("/recipes/update/{id}", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
+	r.Get("/g/{group_id}/recipes/update/{id}", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
 		idstr := chi.URLParam(r, "id")
+
+		groupID, err := getGroupID(r)
+		if err != nil {
+			return nil, err
+		}
 
 		id, err := strconv.Atoi(idstr)
 		if err != nil {
@@ -75,10 +83,10 @@ func (h *handler) RouteRecipe(r chi.Router) {
 			return nil, err
 		}
 
-		return ui.RecipeEditPartial(recipe), nil
+		return ui.RecipeEditPartial(recipe, groupID), nil
 	}))
 
-	r.Post("/recipes/update/{id}", h.updateRecipeDetails())
+	r.Post("/g/{group_id}/recipes/update/{recipe_id}", h.updateRecipeDetails())
 
 	r.Get("/empty", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
 		// Clear modal
@@ -88,25 +96,24 @@ func (h *handler) RouteRecipe(r chi.Router) {
 
 func (h *handler) deleteRecipe() http.HandlerFunc {
 	return ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		recipe_id, err := strconv.Atoi(chi.URLParam(r, "recipe_id"))
+		recipeID, err := strconv.Atoi(chi.URLParam(r, "recipe_id"))
 		if err != nil {
 			return nil, err
 		}
 
-		old_recipe, err := h.GetRecipeByID(r.Context(), int32(recipe_id))
+		groupID, err := getGroupID(r)
 		if err != nil {
-			slog.Error("Could not get recipe", "ID", recipe_id)
 			return nil, err
 		}
 
-		err = h.DeleteRecipeByID(r.Context(), recipe_id)
+		err = h.DeleteRecipeByID(r.Context(), recipeID)
 		if err != nil {
-			slog.Error("Could not delete recipe", "ID", recipe_id)
+			slog.Error("Could not delete recipe", "ID", recipeID)
 			return nil, err
 		}
-		slog.Info("Deleted recipe", "id", recipe_id)
+		slog.Info("Deleted recipe", "id", recipeID)
 
-		recipes, err := h.GetGroupRecipes(r.Context(), old_recipe.GroupID)
+		recipes, err := h.GetGroupRecipes(r.Context(), groupID)
 		if err != nil {
 			slog.Error("Could not get recipes")
 			return nil, err
@@ -118,13 +125,13 @@ func (h *handler) deleteRecipe() http.HandlerFunc {
 			selectedID = recipe.ID
 		}
 
-		mainContent := ui.RecipeDetailPartial(&recipe)
+		mainContent := ui.RecipeDetailPartial(&recipe, groupID)
 
 		// Second part updates another element out-of-band
 		listContent := Div(
 			ID("recipe-list"),
 			Attr("hx-swap-oob", "true"), // Out-of-band swap
-			ui.RecipeListPartial(recipes, selectedID),
+			ui.RecipeListPartial(recipes, selectedID, groupID),
 		)
 
 		// Combine both parts in the response
@@ -134,7 +141,12 @@ func (h *handler) deleteRecipe() http.HandlerFunc {
 
 func (h *handler) updateRecipeDetails() http.HandlerFunc {
 	return ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		idstr := chi.URLParam(r, "id")
+		idstr := chi.URLParam(r, "recipe_id")
+
+		groupID, err := getGroupID(r)
+		if err != nil {
+			return nil, err
+		}
 
 		id, err := strconv.Atoi(idstr)
 		if err != nil {
@@ -164,8 +176,8 @@ func (h *handler) updateRecipeDetails() http.HandlerFunc {
 			return nil, err
 		}
 
-		mainContent := ui.RecipeDetailPartial(recipe)
-		recipes, err := h.GetGroupRecipes(r.Context(), recipe.GroupID)
+		mainContent := ui.RecipeDetailPartial(recipe, groupID)
+		recipes, err := h.GetGroupRecipes(r.Context(), groupID)
 		if err != nil {
 			slog.Error("Could not get recipes")
 			return nil, err
@@ -175,7 +187,7 @@ func (h *handler) updateRecipeDetails() http.HandlerFunc {
 		listContent := Div(
 			ID("recipe-list"),
 			Attr("hx-swap-oob", "true"), // Out-of-band swap
-			ui.RecipeListPartial(recipes, id),
+			ui.RecipeListPartial(recipes, id, groupID),
 		)
 
 		// Combine both parts in the response
@@ -188,6 +200,11 @@ func (h *handler) addNewRecipe() http.HandlerFunc {
 		r.ParseForm()
 		url := r.FormValue("url")
 
+		groupID, err := getGroupID(r)
+		if err != nil {
+			return nil, err
+		}
+
 		resp := req.MustGet(url)
 
 		doc, err := html.Parse(resp.Body)
@@ -197,7 +214,7 @@ func (h *handler) addNewRecipe() http.HandlerFunc {
 		defer r.Body.Close()
 
 		meta := extractMeta(doc)
-		id, err := h.AddRecipe(r.Context(), url, meta.title, meta.description, meta.imageURL)
+		id, err := h.AddRecipe(r.Context(), url, meta.title, meta.description, meta.imageURL, 1, groupID) //FIX
 		if err != nil {
 			slog.Error("Could not add recipe", "error", err.Error())
 			return nil, err
@@ -210,19 +227,19 @@ func (h *handler) addNewRecipe() http.HandlerFunc {
 			return nil, err
 		}
 
-		recipes, err := h.GetGroupRecipes(r.Context(), recipe.GroupID)
+		recipes, err := h.GetGroupRecipes(r.Context(), groupID)
 		if err != nil {
 			slog.Error("Could not get recipes", "error", err.Error())
 			return nil, err
 		}
-
-		mainContent := ui.RecipeListPartial(recipes, id)
+		fmt.Printf("%#v\n", recipes)
+		mainContent := ui.RecipeListPartial(recipes, id, groupID)
 
 		// Second part updates another element out-of-band
 		listContent := Div(
 			ID("recipe-detail"),
 			Attr("hx-swap-oob", "true"), // Out-of-band swap
-			ui.RecipeDetailPartial(recipe),
+			ui.RecipeDetailPartial(recipe, groupID),
 		)
 
 		// Combine both parts in the response
@@ -232,9 +249,14 @@ func (h *handler) addNewRecipe() http.HandlerFunc {
 
 func (h *handler) getRecipeDetailView() http.HandlerFunc {
 	return ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		idstr := chi.URLParam(r, "id")
+		idstr := chi.URLParam(r, "recipe_id")
 		slog.Info("get recipe", "id", idstr)
 		id, err := strconv.Atoi(idstr)
+		if err != nil {
+			return nil, err
+		}
+
+		groupID, err := getGroupID(r)
 		if err != nil {
 			return nil, err
 		}
@@ -244,7 +266,7 @@ func (h *handler) getRecipeDetailView() http.HandlerFunc {
 			return ui.ErrorPartial("Recipe not found"), nil
 		}
 
-		mainContent := ui.RecipeDetailPartial(recipe)
+		mainContent := ui.RecipeDetailPartial(recipe, groupID)
 
 		//recipes, err := s.GetRecipes(r.Context())
 		listItemID := fmt.Sprintf("recipe-list-item-%d", recipe.ID)
@@ -252,7 +274,7 @@ func (h *handler) getRecipeDetailView() http.HandlerFunc {
 		listContent := Div(
 			ID(listItemID),
 			Attr("hx-swap-oob", "true"), // Out-of-band swap
-			ui.RecipeListItemPartial(recipe, id),
+			ui.RecipeListItemPartial(recipe, id, groupID),
 		)
 
 		// Combine both parts in the response

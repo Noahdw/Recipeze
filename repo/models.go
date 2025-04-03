@@ -24,7 +24,6 @@ type LoginToken struct {
 	ID         int32
 	UserID     int32
 	Token      string
-	Email      string
 	ConsumedAt pgtype.Timestamptz
 	CreatedAt  pgtype.Timestamptz
 	ExpiresAt  pgtype.Timestamptz

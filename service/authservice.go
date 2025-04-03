@@ -6,13 +6,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"os"
+
 	"recipeze/model"
 	"recipeze/repo"
 	"time"
 
-	"github.com/gorilla/securecookie"
-	"github.com/gorilla/sessions"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -37,6 +35,12 @@ type AuthService interface {
 
 	// CreateAccount registers a user after verification and sets up default group
 	CreateAccount(ctx context.Context, email string) (*model.User, error)
+
+	// Login logs in a user and returns a session token
+	Login(ctx context.Context, userID int, token string) (bool, error)
+
+	// GetLoggedInUser gives the user from a session token if they are logged in
+	GetLoggedInUser(ctx context.Context, session_token string) (int, error)
 }
 
 func NewAuthService(queries *repo.Queries, db *pgxpool.Pool) *Auth {
@@ -91,14 +95,6 @@ func (a *Auth) VerifyRegistrationToken(ctx context.Context, token string, r *htt
 		return "", fmt.Errorf("issue consuming token")
 	}
 
-	var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
-	print(securecookie.GenerateRandomKey(32))
-
-	session, _ := store.Get(r, "session-name")
-	// Set some session values.
-	session.Values["foo"] = "bar"
-	session.Values[42] = 43
-
 	return savedToken.Email, nil
 }
 
@@ -116,17 +112,37 @@ func (a *Auth) GetUser(ctx context.Context, email string) (*model.User, error) {
 }
 
 func (a *Auth) CreateAccount(ctx context.Context, email string) (*model.User, error) {
-
-	pgUser, err := a.queries.AddUser(ctx, email)
+	tx, err := a.db.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
+	defer tx.Rollback(ctx)
+	qtx := a.queries.WithTx(tx)
+
+	pgUser, err := qtx.AddUser(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+
+	pgGroup, err := qtx.CreateGroup(ctx, repo.StringPG("Your recipes"))
+	if err != nil {
+		return nil, err
+	}
+
+	err = qtx.AddUserToGroup(ctx, repo.AddUserToGroupParams{
+		GroupID: pgGroup.ID,
+		UserID:  pgUser.ID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	user := model.User{
 		ID:    int(pgUser.ID),
 		Name:  pgUser.Name.String,
 		Email: pgUser.Email,
 	}
-	return &user, nil
+	return &user, tx.Commit(ctx)
 }
 
 func (a *Auth) GetUserGroups(ctx context.Context, user_id int) ([]model.Group, error) {
@@ -142,6 +158,30 @@ func (a *Auth) GetUserGroups(ctx context.Context, user_id int) ([]model.Group, e
 		})
 	}
 	return groups, nil
+}
+
+func (a *Auth) Login(ctx context.Context, userID int, token string) (bool, error) {
+	_, err := a.queries.CreateLoginToken(ctx, repo.CreateLoginTokenParams{
+		UserID: int32(userID),
+		Token:  token,
+	})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (a *Auth) GetLoggedInUser(ctx context.Context, session_token string) (int, error) {
+	token, err := a.queries.GetLoginToken(ctx, session_token)
+	if err != nil {
+		return 0, err
+	}
+
+	if time.Now().After(token.ExpiresAt.Time) {
+		return 0, fmt.Errorf("")
+	}
+
+	return int(token.UserID), nil
 }
 
 func GenerateSecureToken(length int) string {

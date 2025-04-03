@@ -122,6 +122,36 @@ func (q *Queries) CreateGroup(ctx context.Context, name pgtype.Text) (Group, err
 	return i, err
 }
 
+const createLoginToken = `-- name: CreateLoginToken :one
+INSERT INTO login_tokens (
+    user_id,
+    token
+) VALUES (
+    $1, $2
+)
+RETURNING id, user_id, token, consumed_at, created_at, expires_at, creator_ip
+`
+
+type CreateLoginTokenParams struct {
+	UserID int32
+	Token  string
+}
+
+func (q *Queries) CreateLoginToken(ctx context.Context, arg CreateLoginTokenParams) (LoginToken, error) {
+	row := q.db.QueryRow(ctx, createLoginToken, arg.UserID, arg.Token)
+	var i LoginToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ConsumedAt,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.CreatorIp,
+	)
+	return i, err
+}
+
 const createRegistrationToken = `-- name: CreateRegistrationToken :exec
 INSERT INTO registration_tokens (
     token,
@@ -215,6 +245,25 @@ func (q *Queries) GetGroupUsers(ctx context.Context, groupID int32) ([]User, err
 		return nil, err
 	}
 	return items, nil
+}
+
+const getLoginToken = `-- name: GetLoginToken :one
+SELECT id, user_id, token, consumed_at, created_at, expires_at, creator_ip FROM login_tokens WHERE token = $1 LIMIT 1
+`
+
+func (q *Queries) GetLoginToken(ctx context.Context, token string) (LoginToken, error) {
+	row := q.db.QueryRow(ctx, getLoginToken, token)
+	var i LoginToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ConsumedAt,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.CreatorIp,
+	)
+	return i, err
 }
 
 const getRecipeByID = `-- name: GetRecipeByID :one

@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"recipeze/appconfig"
 
 	"recipeze/ui"
@@ -12,7 +15,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/sessions"
 	. "maragu.dev/gomponents"
+	ghttp "maragu.dev/gomponents/http"
 )
 
 func (h *handler) RouteHome(r chi.Router) {
@@ -20,9 +25,40 @@ func (h *handler) RouteHome(r chi.Router) {
 		return ui.HomePage(ui.PageProps{}), nil
 	}))
 
-	r.Get("/login", h.adapt(func(ctx requestContext) (Node, error) {
-		return ui.SignupForm("#modal-container"), nil
-	}))
+	r.Get("/login", func(w http.ResponseWriter, r *http.Request) {
+		var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
+		store.Options.HttpOnly = true
+
+		session, _ := store.Get(r, "session")
+		session_token, ok := session.Values["session_token"]
+		if !ok {
+			renderNode(w, r, ui.SignupForm("#modal-container"))
+			return
+		}
+
+		sessionTokenStr, ok := session_token.(string)
+		if !ok {
+			renderNode(w, r, ui.SignupForm("#modal-container"))
+			return
+		}
+
+		userID, err := h.GetLoggedInUser(r.Context(), sessionTokenStr)
+		if err != nil {
+			renderNode(w, r, ui.SignupForm("#modal-container"))
+			return
+		}
+
+		groups, err := h.GetUserGroups(r.Context(), userID)
+		if err != nil {
+			renderNode(w, r, ui.SignupForm("#modal-container"))
+			return
+		}
+
+		// Redirect to the default recipes page for the user
+		url := fmt.Sprintf("%s/g/%d/recipes", appconfig.Config.URL, groups[0].ID)
+		w.Header().Set("HX-Redirect", url)
+		w.WriteHeader(http.StatusOK)
+	})
 
 	r.Post("/auth/magic-link", h.sendMagicLinkToEmail())
 
@@ -89,7 +125,7 @@ func (h *handler) authenticateByMagicLink() http.HandlerFunc {
 		if err != nil {
 			slog.Error("Could not verify email", "err", err.Error())
 			url := appconfig.Config.URL
-			http.Redirect(ctx.w, ctx.r, url, http.StatusTemporaryRedirect)
+			http.Redirect(ctx.w, ctx.r, url, http.StatusSeeOther)
 			return nil, nil
 		}
 
@@ -106,13 +142,48 @@ func (h *handler) authenticateByMagicLink() http.HandlerFunc {
 
 		}
 
+		session_token := generateSessionToken(32)
+		loggedIn, err := h.Login(ctx.context(), user.ID, session_token)
+		if err != nil {
+			return nil, err
+		}
+		if !loggedIn {
+			return nil, nil
+		}
+
+		var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
+		store.Options.HttpOnly = true
+
+		session, _ := store.Get(ctx.r, "session")
+		// Set some session values.
+		session.Values["session_token"] = session_token
+		err = session.Save(ctx.r, ctx.w)
+		if err != nil {
+			return nil, err
+		}
+
 		groups, err := h.GetUserGroups(ctx.context(), user.ID)
 		if err != nil {
 			return nil, err
 		}
-		url := fmt.Sprintf("%s/recipes/%d", appconfig.Config.URL, groups[0].ID)
-		http.Redirect(ctx.w, ctx.r, url, http.StatusTemporaryRedirect)
+		url := fmt.Sprintf("%s/g/%d/recipes", appconfig.Config.URL, groups[0].ID)
+		http.Redirect(ctx.w, ctx.r, url, http.StatusSeeOther)
+		slog.Info("Redirect verified user", "url", url)
 
 		return nil, nil
 	})
+}
+
+func generateSessionToken(length int) string {
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(b)
+}
+
+func renderNode(w http.ResponseWriter, r *http.Request, node Node) {
+	ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
+		return node, nil
+	})(w, r)
 }

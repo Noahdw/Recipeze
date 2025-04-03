@@ -4,8 +4,10 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"recipeze/service"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	. "maragu.dev/gomponents"
@@ -53,4 +55,12 @@ func (c *requestContext) context() context.Context {
 
 func (c *requestContext) queryParam(param string) string {
 	return c.r.URL.Query().Get(param)
+}
+
+func getGroupID(r *http.Request) (int, error) {
+	groupIDStr := chi.URLParam(r, "group_id")
+	if groupIDStr == "" {
+		return 0, fmt.Errorf("no group ID provided")
+	}
+	return strconv.Atoi(groupIDStr)
 }

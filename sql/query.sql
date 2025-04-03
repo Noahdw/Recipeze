@@ -93,3 +93,15 @@ UPDATE registration_tokens
 SET
     consumed_at = $1
 WHERE id = $2;
+
+-- name: CreateLoginToken :one
+INSERT INTO login_tokens (
+    user_id,
+    token
+) VALUES (
+    $1, $2
+)
+RETURNING *;
+
+-- name: GetLoginToken :one
+SELECT * FROM login_tokens WHERE token = $1 LIMIT 1;

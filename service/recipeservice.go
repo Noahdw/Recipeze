@@ -23,7 +23,7 @@ func NewRecipeService(queries *repo.Queries, db *pgxpool.Pool) *Recipe {
 
 type RecipeService interface {
 	// AddRecipe creates a new recipe and returns its ID
-	AddRecipe(ctx context.Context, url, name, description string, imgURL string) (id int, err error)
+	AddRecipe(ctx context.Context, url, name, description string, imgURL string, userID int, groupID int) (id int, err error)
 
 	// GetRecipes retrieves all recipes
 	GetGroupRecipes(ctx context.Context, group_id int) ([]model.Recipe, error)
@@ -38,8 +38,10 @@ type RecipeService interface {
 	UpdateRecipe(ctx context.Context, args repo.UpdateRecipeParams) error
 }
 
-func (r *Recipe) AddRecipe(ctx context.Context, url, name, description string, imgURL string) (id int, err error) {
+func (r *Recipe) AddRecipe(ctx context.Context, url, name, description string, imgURL string, userID int, groupID int) (id int, err error) {
 	args := repo.AddRecipeParams{
+		CreatedBy:   int32(userID),
+		GroupID:     int32(groupID),
 		Url:         repo.StringPG(url),
 		Name:        repo.StringPG(name),
 		Description: repo.StringPG(description),
@@ -84,6 +86,9 @@ func (r *Recipe) DeleteRecipeByID(ctx context.Context, id int) error {
 }
 
 func (r *Recipe) UpdateRecipe(ctx context.Context, args repo.UpdateRecipeParams) error {
+	if len(args.Name.String) == 0 {
+		args.Name.String = "Recipe"
+	}
 	err := r.queries.UpdateRecipe(ctx, args)
 	return err
 }
