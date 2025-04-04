@@ -47,7 +47,7 @@ func (h *handler) RouteRecipe(r chi.Router) {
 		}
 
 		// Otherwise return full page
-		return ui.RecipePage(ui.PageProps{}, recipes, groupID), nil
+		return ui.RecipePage(ui.PageProps{IncludeHeader: true}, recipes, groupID), nil
 	}))
 
 	// Get single recipe (for detail view)

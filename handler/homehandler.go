@@ -22,7 +22,7 @@ import (
 
 func (h *handler) RouteHome(r chi.Router) {
 	r.Get("/", h.adapt(func(ctx requestContext) (Node, error) {
-		return ui.HomePage(ui.PageProps{}), nil
+		return ui.HomePage(ui.PageProps{IncludeHeader: false}), nil
 	}))
 
 	r.Get("/login", func(w http.ResponseWriter, r *http.Request) {
@@ -57,6 +57,20 @@ func (h *handler) RouteHome(r chi.Router) {
 		// Redirect to the default recipes page for the user
 		url := fmt.Sprintf("%s/g/%d/recipes", appconfig.Config.URL, groups[0].ID)
 		w.Header().Set("HX-Redirect", url)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	r.Get("/logout", func(w http.ResponseWriter, r *http.Request) {
+		var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
+		store.Options.HttpOnly = true
+
+		session, _ := store.Get(r, "session")
+		session.Values["session_token"] = ""
+		err := session.Save(r, w)
+		if err != nil {
+			return
+		}
+		w.Header().Set("HX-Redirect", appconfig.Config.URL)
 		w.WriteHeader(http.StatusOK)
 	})
 

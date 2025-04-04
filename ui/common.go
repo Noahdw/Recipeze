@@ -19,11 +19,11 @@ var appCSSPath, appJSPath, htmxJSPath string
 
 // PageProps are properties for the [page] component.
 type PageProps struct {
-	Title       string
-	Description string
+	Title         string
+	Description   string
+	IncludeHeader bool
 }
 
-// page layout with header, footer, and container to restrict width and set base padding.
 func page(props PageProps, children ...Node) Node {
 	// Hash the paths for easy cache busting on changes
 	hashOnce.Do(func() {
@@ -31,7 +31,10 @@ func page(props PageProps, children ...Node) Node {
 		htmxJSPath = getHashedPath("public/scripts/htmx.js")
 		appJSPath = getHashedPath("public/scripts/app.js")
 	})
-
+	var headerNode Node
+	if props.IncludeHeader {
+		headerNode = header()
+	}
 	return HTML5(HTML5Props{
 		Title:       props.Title,
 		Description: props.Description,
@@ -44,7 +47,7 @@ func page(props PageProps, children ...Node) Node {
 		Body: []Node{Class("bg-indigo-600 text-gray-900 scrollbar-stable"),
 			Attr("style", "overflow-y: scroll;"),
 			Div(Class("min-h-screen flex flex-col justify-between bg-gray-200"),
-				header(),
+				headerNode,
 				Div(Class("grow"),
 					container(true, true,
 						Group(children),
@@ -65,9 +68,7 @@ func header() Node {
 					//Img(Src("/images/logo.png"), Alt("Logo"), Class("h-12 w-auto bg-white rounded-full mr-4")),
 					Text("Home"),
 				),
-				A(Href("/recipes"), Class("inline-flex items-center text-xl font-semibold"),
-					Text("Recipes"),
-				),
+				PrimaryButton("log out", "/logout", ""),
 			),
 		),
 	)
