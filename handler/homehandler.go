@@ -21,44 +21,11 @@ import (
 )
 
 func (h *handler) RouteHome(r chi.Router) {
+
 	r.Get("/", h.adapt(func(ctx requestContext) (Node, error) {
 		return ui.HomePage(ui.PageProps{IncludeHeader: false}), nil
 	}))
-
-	r.Get("/login", func(w http.ResponseWriter, r *http.Request) {
-		var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
-		store.Options.HttpOnly = true
-
-		session, _ := store.Get(r, "session")
-		session_token, ok := session.Values["session_token"]
-		if !ok {
-			renderNode(w, r, ui.SignupForm("#modal-container"))
-			return
-		}
-
-		sessionTokenStr, ok := session_token.(string)
-		if !ok {
-			renderNode(w, r, ui.SignupForm("#modal-container"))
-			return
-		}
-
-		userID, err := h.GetLoggedInUser(r.Context(), sessionTokenStr)
-		if err != nil {
-			renderNode(w, r, ui.SignupForm("#modal-container"))
-			return
-		}
-
-		groups, err := h.GetUserGroups(r.Context(), userID)
-		if err != nil {
-			renderNode(w, r, ui.SignupForm("#modal-container"))
-			return
-		}
-
-		// Redirect to the default recipes page for the user
-		url := fmt.Sprintf("%s/g/%d/recipes", appconfig.Config.URL, groups[0].ID)
-		w.Header().Set("HX-Redirect", url)
-		w.WriteHeader(http.StatusOK)
-	})
+	r.Get("/login", h.login())
 
 	r.Get("/logout", func(w http.ResponseWriter, r *http.Request) {
 		var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
@@ -77,6 +44,44 @@ func (h *handler) RouteHome(r chi.Router) {
 	r.Post("/auth/magic-link", h.sendMagicLinkToEmail())
 
 	r.Get("/auth/verify", h.authenticateByMagicLink())
+}
+
+func (h *handler) login() http.HandlerFunc {
+	return h.adapt(func(ctx requestContext) (Node, error) {
+		var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
+		store.Options.HttpOnly = true
+
+		session, _ := store.Get(ctx.r, "session")
+		session_token, ok := session.Values["session_token"]
+		if !ok {
+			renderNode(ctx.w, ctx.r, ui.SignupForm("#modal-container"))
+			return nil, fmt.Errorf("")
+		}
+
+		sessionTokenStr, ok := session_token.(string)
+		if !ok {
+			renderNode(ctx.w, ctx.r, ui.SignupForm("#modal-container"))
+			return nil, fmt.Errorf("")
+		}
+
+		userID, err := h.GetLoggedInUser(ctx.context(), sessionTokenStr)
+		if err != nil {
+			renderNode(ctx.w, ctx.r, ui.SignupForm("#modal-container"))
+			return nil, err
+		}
+
+		groups, err := h.GetUserGroups(ctx.context(), userID)
+		if err != nil {
+			renderNode(ctx.w, ctx.r, ui.SignupForm("#modal-container"))
+			return nil, err
+		}
+
+		// Redirect to the default recipes page for the user
+		url := fmt.Sprintf("%s/g/%d/recipes", appconfig.Config.URL, groups[0].ID)
+		ctx.w.Header().Set("HX-Redirect", url)
+		ctx.w.WriteHeader(http.StatusOK)
+		return nil, nil
+	})
 }
 
 func (h *handler) sendMagicLinkToEmail() http.HandlerFunc {

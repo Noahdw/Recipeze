@@ -64,3 +64,11 @@ func getGroupID(r *http.Request) (int, error) {
 	}
 	return strconv.Atoi(groupIDStr)
 }
+
+func getRecipeID(r *http.Request) (int, error) {
+	groupIDStr := chi.URLParam(r, "recipe_id")
+	if groupIDStr == "" {
+		return 0, fmt.Errorf("no group ID provided")
+	}
+	return strconv.Atoi(groupIDStr)
+}
