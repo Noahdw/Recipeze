@@ -323,6 +323,23 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	return i, err
 }
 
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, email, name, image_url, created_at from users WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.ImageUrl,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getUserRecipes = `-- name: GetUserRecipes :many
 SELECT id, created_by, group_id, url, name, description, image_url, likes, created_at FROM recipes where created_by = $1
 `
@@ -382,6 +399,22 @@ func (q *Queries) GetUsersGroups(ctx context.Context, groupID int32) ([]Group, e
 		return nil, err
 	}
 	return items, nil
+}
+
+const isUserInGroup = `-- name: IsUserInGroup :one
+SELECT id from group_users WHERE group_id = $1 AND user_id = $2 LIMIT 1
+`
+
+type IsUserInGroupParams struct {
+	GroupID int32
+	UserID  int32
+}
+
+func (q *Queries) IsUserInGroup(ctx context.Context, arg IsUserInGroupParams) (int32, error) {
+	row := q.db.QueryRow(ctx, isUserInGroup, arg.GroupID, arg.UserID)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
 }
 
 const updateRecipe = `-- name: UpdateRecipe :exec

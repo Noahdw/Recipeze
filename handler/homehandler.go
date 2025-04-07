@@ -64,13 +64,13 @@ func (h *handler) login() http.HandlerFunc {
 			return nil, fmt.Errorf("")
 		}
 
-		userID, err := h.GetLoggedInUser(ctx.context(), sessionTokenStr)
+		user, err := h.GetLoggedInUser(ctx.context(), sessionTokenStr)
 		if err != nil {
 			renderNode(ctx.w, ctx.r, ui.SignupForm("#modal-container"))
 			return nil, err
 		}
 
-		groups, err := h.GetUserGroups(ctx.context(), userID)
+		groups, err := h.GetUserGroups(ctx.context(), user.ID)
 		if err != nil {
 			renderNode(ctx.w, ctx.r, ui.SignupForm("#modal-container"))
 			return nil, err

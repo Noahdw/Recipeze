@@ -40,7 +40,10 @@ type AuthService interface {
 	Login(ctx context.Context, userID int, token string) (bool, error)
 
 	// GetLoggedInUser gives the user from a session token if they are logged in
-	GetLoggedInUser(ctx context.Context, session_token string) (int, error)
+	GetLoggedInUser(ctx context.Context, session_token string) (*model.User, error)
+
+	// IsUserInGroup tells if a user belongs to a group
+	IsUserInGroup(ctx context.Context, groupID int, userID int) (bool, error)
 }
 
 func NewAuthService(queries *repo.Queries, db *pgxpool.Pool) *Auth {
@@ -171,17 +174,36 @@ func (a *Auth) Login(ctx context.Context, userID int, token string) (bool, error
 	return true, nil
 }
 
-func (a *Auth) GetLoggedInUser(ctx context.Context, session_token string) (int, error) {
-	token, err := a.queries.GetLoginToken(ctx, session_token)
+func (a *Auth) GetLoggedInUser(ctx context.Context, sessionStoken string) (*model.User, error) {
+	token, err := a.queries.GetLoginToken(ctx, sessionStoken)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	if time.Now().After(token.ExpiresAt.Time) {
-		return 0, fmt.Errorf("")
+		return nil, fmt.Errorf("")
 	}
+	pgUser, err := a.queries.GetUserByID(ctx, token.UserID)
+	if err != nil {
+		return nil, err
+	}
+	user := &model.User{
+		ID:    int(pgUser.ID),
+		Name:  pgUser.Name.String,
+		Email: pgUser.Email,
+	}
+	return user, nil
+}
 
-	return int(token.UserID), nil
+func (a *Auth) IsUserInGroup(ctx context.Context, groupID int, userID int) (bool, error) {
+	_, err := a.queries.IsUserInGroup(ctx, repo.IsUserInGroupParams{
+		GroupID: int32(groupID),
+		UserID:  int32(userID),
+	})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func GenerateSecureToken(length int) string {

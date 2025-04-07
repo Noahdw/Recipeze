@@ -10,11 +10,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	. "maragu.dev/gomponents"
 
+	mw "recipeze/middleware"
 	"recipeze/model"
 	"recipeze/repo"
 	"recipeze/ui"
 
 	"github.com/imroc/req/v3"
+	"golang.org/x/net/context"
 	"golang.org/x/net/html"
 	hx "maragu.dev/gomponents-htmx/http"
 	. "maragu.dev/gomponents/html"
@@ -27,11 +29,17 @@ type meta struct {
 	imageURL    string
 }
 
-func (h *handler) RouteRecipe(r chi.Router) {
+func (h *handler) RouteRecipe(r chi.Router, m *mw.AuthMiddleware) {
 	r.Route("/g/{group_id}", func(r chi.Router) {
+		r.Use(m.Authenticate)
+		r.Use(m.AuthorizeGroup)
+
 		// Get page for a group, including recipes
 		r.Get("/recipes", h.adapt(func(ctx requestContext) (Node, error) {
-			groupID, err := getGroupID(ctx.r)
+			if !isUserActionAllowed(ctx.context()) {
+				return nil, fmt.Errorf("")
+			}
+			groupID, err := GetGroupID(ctx.r)
 			if err != nil {
 				return nil, err
 			}
@@ -55,7 +63,10 @@ func (h *handler) RouteRecipe(r chi.Router) {
 		r.Get("/recipe/{recipe_id}", h.getRecipeDetailView())
 
 		r.Get("/recipes/new", h.adapt(func(ctx requestContext) (Node, error) {
-			group_id, err := getGroupID(ctx.r)
+			if !isUserActionAllowed(ctx.context()) {
+				return nil, fmt.Errorf("")
+			}
+			group_id, err := GetGroupID(ctx.r)
 			if err != nil {
 				return nil, err
 			}
@@ -65,16 +76,17 @@ func (h *handler) RouteRecipe(r chi.Router) {
 		r.Post("/recipes/delete/{recipe_id}", h.deleteRecipe())
 
 		r.Get("/recipes/update/{recipe_id}", h.adapt(func(ctx requestContext) (Node, error) {
+			if !isUserActionAllowed(ctx.context()) {
+				return nil, fmt.Errorf("")
+			}
 			recipeID, err := getRecipeID(ctx.r)
 			if err != nil {
 				return nil, err
 			}
-
-			groupID, err := getGroupID(ctx.r)
+			groupID, err := GetGroupID(ctx.r)
 			if err != nil {
 				return nil, err
 			}
-
 			recipe, err := h.GetRecipeByID(ctx.context(), int32(recipeID))
 			if err != nil {
 				return nil, err
@@ -94,12 +106,14 @@ func (h *handler) RouteRecipe(r chi.Router) {
 
 func (h *handler) deleteRecipe() http.HandlerFunc {
 	return h.adapt(func(ctx requestContext) (Node, error) {
+		if !isUserActionAllowed(ctx.context()) {
+			return nil, fmt.Errorf("")
+		}
 		recipeID, err := getRecipeID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
-
-		groupID, err := getGroupID(ctx.r)
+		groupID, err := GetGroupID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
@@ -139,12 +153,15 @@ func (h *handler) deleteRecipe() http.HandlerFunc {
 
 func (h *handler) updateRecipeDetails() http.HandlerFunc {
 	return h.adapt(func(ctx requestContext) (Node, error) {
+		if !isUserActionAllowed(ctx.context()) {
+			return nil, fmt.Errorf("")
+		}
 		recipeID, err := getRecipeID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
 
-		groupID, err := getGroupID(ctx.r)
+		groupID, err := GetGroupID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
@@ -193,10 +210,13 @@ func (h *handler) updateRecipeDetails() http.HandlerFunc {
 
 func (h *handler) addNewRecipe() http.HandlerFunc {
 	return h.adapt(func(ctx requestContext) (Node, error) {
+		if !isUserActionAllowed(ctx.context()) {
+			return nil, fmt.Errorf("")
+		}
 		ctx.r.ParseForm()
 		url := ctx.r.FormValue("url")
 
-		groupID, err := getGroupID(ctx.r)
+		groupID, err := GetGroupID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
@@ -245,13 +265,16 @@ func (h *handler) addNewRecipe() http.HandlerFunc {
 
 func (h *handler) getRecipeDetailView() http.HandlerFunc {
 	return h.adapt(func(ctx requestContext) (Node, error) {
+		if !isUserActionAllowed(ctx.context()) {
+			return nil, fmt.Errorf("")
+		}
 		recipeID, err := getRecipeID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
 		slog.Info("get recipe", "id", recipeID)
 
-		groupID, err := getGroupID(ctx.r)
+		groupID, err := GetGroupID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
@@ -275,4 +298,13 @@ func (h *handler) getRecipeDetailView() http.HandlerFunc {
 		// Combine both parts in the response
 		return Div(mainContent, listContent), nil
 	})
+}
+
+func isUserActionAllowed(ctx context.Context) bool {
+	authorizedAny := ctx.Value(mw.CtxGroupAuthorizedKey{})
+	authorized, ok := authorizedAny.(bool)
+	if !ok {
+		return false
+	}
+	return authorized
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	rmiddleware "recipeze/middleware"
 	"recipeze/service"
 	"strconv"
 
@@ -34,9 +35,10 @@ func NewHandler(auth service.AuthService, recipe service.RecipeService) *handler
 }
 
 func InitRouting(r chi.Router, auth service.AuthService, recipe service.RecipeService) {
+	mw := rmiddleware.NewAuthMiddleware(auth)
 	h := NewHandler(auth, recipe)
 	h.RouteHome(r)
-	h.RouteRecipe(r)
+	h.RouteRecipe(r, mw)
 }
 
 func (h *handler) adapt(fn adaptFunc) http.HandlerFunc {
@@ -57,7 +59,7 @@ func (c *requestContext) queryParam(param string) string {
 	return c.r.URL.Query().Get(param)
 }
 
-func getGroupID(r *http.Request) (int, error) {
+func GetGroupID(r *http.Request) (int, error) {
 	groupIDStr := chi.URLParam(r, "group_id")
 	if groupIDStr == "" {
 		return 0, fmt.Errorf("no group ID provided")

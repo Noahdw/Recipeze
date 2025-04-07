@@ -67,8 +67,14 @@ FROM groups
 JOIN group_users ON groups.id = group_users.user_id
 WHERE group_users.group_id = $1;
 
+-- name: IsUserInGroup :one
+SELECT id from group_users WHERE group_id = $1 AND user_id = $2 LIMIT 1;
+
 -- name: GetUserByEmail :one
 SELECT * from users WHERE email = $1 LIMIT 1;
+
+-- name: GetUserByID :one
+SELECT * from users WHERE id = $1 LIMIT 1;
 
 -- name: UpdateUser :exec
 UPDATE users 
