@@ -18,7 +18,6 @@ import (
 	"golang.org/x/net/html"
 	hx "maragu.dev/gomponents-htmx/http"
 	. "maragu.dev/gomponents/html"
-	ghttp "maragu.dev/gomponents/http"
 )
 
 type meta struct {
@@ -31,18 +30,18 @@ type meta struct {
 func (h *handler) RouteRecipe(r chi.Router) {
 	r.Route("/g/{group_id}", func(r chi.Router) {
 		// Get page for a group, including recipes
-		r.Get("/recipes", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-			groupID, err := getGroupID(r)
+		r.Get("/recipes", h.adapt(func(ctx requestContext) (Node, error) {
+			groupID, err := getGroupID(ctx.r)
 			if err != nil {
 				return nil, err
 			}
-			recipes, err := h.GetGroupRecipes(r.Context(), groupID)
+			recipes, err := h.GetGroupRecipes(ctx.context(), groupID)
 			if err != nil {
 				return nil, err
 			}
 
 			// If HTMX request, return just the list
-			if hx.IsRequest(r.Header) {
+			if hx.IsRequest(ctx.r.Header) {
 				return ui.RecipeListPartial(recipes, 0, groupID), nil
 			}
 
@@ -55,8 +54,8 @@ func (h *handler) RouteRecipe(r chi.Router) {
 		// Get single recipe (for detail view)
 		r.Get("/recipe/{recipe_id}", h.getRecipeDetailView())
 
-		r.Get("/recipes/new", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-			group_id, err := getGroupID(r)
+		r.Get("/recipes/new", h.adapt(func(ctx requestContext) (Node, error) {
+			group_id, err := getGroupID(ctx.r)
 			if err != nil {
 				return nil, err
 			}
@@ -65,18 +64,18 @@ func (h *handler) RouteRecipe(r chi.Router) {
 
 		r.Post("/recipes/delete/{recipe_id}", h.deleteRecipe())
 
-		r.Get("/recipes/update/{recipe_id}", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-			recipeID, err := getRecipeID(r)
+		r.Get("/recipes/update/{recipe_id}", h.adapt(func(ctx requestContext) (Node, error) {
+			recipeID, err := getRecipeID(ctx.r)
 			if err != nil {
 				return nil, err
 			}
 
-			groupID, err := getGroupID(r)
+			groupID, err := getGroupID(ctx.r)
 			if err != nil {
 				return nil, err
 			}
 
-			recipe, err := h.GetRecipeByID(r.Context(), int32(recipeID))
+			recipe, err := h.GetRecipeByID(ctx.context(), int32(recipeID))
 			if err != nil {
 				return nil, err
 			}
@@ -87,32 +86,32 @@ func (h *handler) RouteRecipe(r chi.Router) {
 		r.Post("/recipes/update/{recipe_id}", h.updateRecipeDetails())
 	})
 
-	r.Get("/empty", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
+	r.Get("/empty", h.adapt(func(ctx requestContext) (Node, error) {
 		// Clear modal
 		return nil, nil
 	}))
 }
 
 func (h *handler) deleteRecipe() http.HandlerFunc {
-	return ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		recipeID, err := getRecipeID(r)
+	return h.adapt(func(ctx requestContext) (Node, error) {
+		recipeID, err := getRecipeID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
 
-		groupID, err := getGroupID(r)
+		groupID, err := getGroupID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
 
-		err = h.DeleteRecipeByID(r.Context(), recipeID)
+		err = h.DeleteRecipeByID(ctx.context(), recipeID)
 		if err != nil {
 			slog.Error("Could not delete recipe", "ID", recipeID)
 			return nil, err
 		}
 		slog.Info("Deleted recipe", "id", recipeID)
 
-		recipes, err := h.GetGroupRecipes(r.Context(), groupID)
+		recipes, err := h.GetGroupRecipes(ctx.context(), groupID)
 		if err != nil {
 			slog.Error("Could not get recipes")
 			return nil, err
@@ -139,42 +138,42 @@ func (h *handler) deleteRecipe() http.HandlerFunc {
 }
 
 func (h *handler) updateRecipeDetails() http.HandlerFunc {
-	return ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		recipeID, err := getRecipeID(r)
+	return h.adapt(func(ctx requestContext) (Node, error) {
+		recipeID, err := getRecipeID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
 
-		groupID, err := getGroupID(r)
+		groupID, err := getGroupID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
 
 		// Parse the form
-		err = r.ParseForm()
+		err = ctx.r.ParseForm()
 		if err != nil {
 			return nil, err
 		}
 
 		// Update the recipe in the database
-		err = h.UpdateRecipe(r.Context(), repo.UpdateRecipeParams{
+		err = h.UpdateRecipe(ctx.context(), repo.UpdateRecipeParams{
 			ID:          int32(recipeID),
-			Name:        repo.StringPG(r.FormValue("name")),
-			Url:         repo.StringPG(r.FormValue("url")),
-			Description: repo.StringPG(r.FormValue("description")),
+			Name:        repo.StringPG(ctx.r.FormValue("name")),
+			Url:         repo.StringPG(ctx.r.FormValue("url")),
+			Description: repo.StringPG(ctx.r.FormValue("description")),
 		})
 		if err != nil {
 			slog.Error("Could not update recipe", "ID", recipeID)
 			return nil, err
 		}
 
-		recipe, err := h.GetRecipeByID(r.Context(), int32(recipeID))
+		recipe, err := h.GetRecipeByID(ctx.context(), int32(recipeID))
 		if err != nil {
 			return nil, err
 		}
 
 		mainContent := ui.RecipeDetailPartial(recipe, groupID)
-		recipes, err := h.GetGroupRecipes(r.Context(), groupID)
+		recipes, err := h.GetGroupRecipes(ctx.context(), groupID)
 		if err != nil {
 			slog.Error("Could not get recipes")
 			return nil, err
@@ -193,11 +192,11 @@ func (h *handler) updateRecipeDetails() http.HandlerFunc {
 }
 
 func (h *handler) addNewRecipe() http.HandlerFunc {
-	return ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		r.ParseForm()
-		url := r.FormValue("url")
+	return h.adapt(func(ctx requestContext) (Node, error) {
+		ctx.r.ParseForm()
+		url := ctx.r.FormValue("url")
 
-		groupID, err := getGroupID(r)
+		groupID, err := getGroupID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
@@ -208,23 +207,23 @@ func (h *handler) addNewRecipe() http.HandlerFunc {
 		if err != nil {
 			// ehh, maybe do nothing?
 		}
-		defer r.Body.Close()
+		defer ctx.r.Body.Close()
 
 		meta := extractMeta(doc)
-		id, err := h.AddRecipe(r.Context(), url, meta.title, meta.description, meta.imageURL, 1, groupID) //FIX
+		id, err := h.AddRecipe(ctx.context(), url, meta.title, meta.description, meta.imageURL, 1, groupID) //FIX
 		if err != nil {
 			slog.Error("Could not add recipe", "error", err.Error())
 			return nil, err
 		}
 
-		recipe, err := h.GetRecipeByID(r.Context(), int32(id))
+		recipe, err := h.GetRecipeByID(ctx.context(), int32(id))
 
 		if err != nil {
 			slog.Error("Could not get recipe", "error", err.Error())
 			return nil, err
 		}
 
-		recipes, err := h.GetGroupRecipes(r.Context(), groupID)
+		recipes, err := h.GetGroupRecipes(ctx.context(), groupID)
 		if err != nil {
 			slog.Error("Could not get recipes", "error", err.Error())
 			return nil, err
@@ -245,19 +244,19 @@ func (h *handler) addNewRecipe() http.HandlerFunc {
 }
 
 func (h *handler) getRecipeDetailView() http.HandlerFunc {
-	return ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
-		recipeID, err := getRecipeID(r)
+	return h.adapt(func(ctx requestContext) (Node, error) {
+		recipeID, err := getRecipeID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
 		slog.Info("get recipe", "id", recipeID)
 
-		groupID, err := getGroupID(r)
+		groupID, err := getGroupID(ctx.r)
 		if err != nil {
 			return nil, err
 		}
 
-		recipe, err := h.GetRecipeByID(r.Context(), int32(recipeID))
+		recipe, err := h.GetRecipeByID(ctx.r.Context(), int32(recipeID))
 		if err != nil {
 			return ui.ErrorPartial("Recipe not found"), nil
 		}
@@ -275,6 +274,5 @@ func (h *handler) getRecipeDetailView() http.HandlerFunc {
 
 		// Combine both parts in the response
 		return Div(mainContent, listContent), nil
-
 	})
 }
