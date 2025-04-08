@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -17,7 +18,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/sessions"
 	. "maragu.dev/gomponents"
-	ghttp "maragu.dev/gomponents/http"
+)
+
+type ErrType int
+
+var (
+	ErrDefault       = errors.New("unknown error")
+	ErrNotFound      = errors.New("URL not found")
+	ErrNotAuthorized = errors.New("not auhotirzed")
 )
 
 func (h *handler) RouteHome(r chi.Router) {
@@ -26,23 +34,8 @@ func (h *handler) RouteHome(r chi.Router) {
 		return ui.HomePage(ui.PageProps{IncludeHeader: false}), nil
 	}))
 	r.Get("/login", h.login())
-
-	r.Get("/logout", func(w http.ResponseWriter, r *http.Request) {
-		var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
-		store.Options.HttpOnly = true
-
-		session, _ := store.Get(r, "session")
-		session.Values["session_token"] = ""
-		err := session.Save(r, w)
-		if err != nil {
-			return
-		}
-		w.Header().Set("HX-Redirect", appconfig.Config.URL)
-		w.WriteHeader(http.StatusOK)
-	})
-
+	r.Get("/logout", h.logout())
 	r.Post("/auth/magic-link", h.sendMagicLinkToEmail())
-
 	r.Get("/auth/verify", h.authenticateByMagicLink())
 }
 
@@ -55,30 +48,47 @@ func (h *handler) login() http.HandlerFunc {
 		session_token, ok := session.Values["session_token"]
 		if !ok {
 			renderNode(ctx.w, ctx.r, ui.SignupForm("#modal-container"))
-			return nil, fmt.Errorf("")
+			return nil, nil
 		}
 
 		sessionTokenStr, ok := session_token.(string)
 		if !ok {
 			renderNode(ctx.w, ctx.r, ui.SignupForm("#modal-container"))
-			return nil, fmt.Errorf("")
+			return nil, nil
 		}
 
 		user, err := h.GetLoggedInUser(ctx.context(), sessionTokenStr)
 		if err != nil {
 			renderNode(ctx.w, ctx.r, ui.SignupForm("#modal-container"))
-			return nil, err
+			return nil, nil
 		}
 
 		groups, err := h.GetUserGroups(ctx.context(), user.ID)
 		if err != nil {
 			renderNode(ctx.w, ctx.r, ui.SignupForm("#modal-container"))
-			return nil, err
+			return nil, nil
 		}
 
 		// Redirect to the default recipes page for the user
 		url := fmt.Sprintf("%s/g/%d/recipes", appconfig.Config.URL, groups[0].ID)
 		ctx.w.Header().Set("HX-Redirect", url)
+		ctx.w.WriteHeader(http.StatusOK)
+		return nil, nil
+	})
+}
+
+func (h *handler) logout() http.HandlerFunc {
+	return h.adapt(func(ctx requestContext) (Node, error) {
+		var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
+		store.Options.HttpOnly = true
+
+		session, _ := store.Get(ctx.r, "session")
+		session.Values["session_token"] = ""
+		err := session.Save(ctx.r, ctx.w)
+		if err != nil {
+			return nil, ErrDefault
+		}
+		ctx.w.Header().Set("HX-Redirect", appconfig.Config.URL)
 		ctx.w.WriteHeader(http.StatusOK)
 		return nil, nil
 	})
@@ -94,13 +104,13 @@ func (h *handler) sendMagicLinkToEmail() http.HandlerFunc {
 		if err != nil {
 			// TODO
 			slog.Error("Could not load email config")
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		// Get email user entered
 		err = ctx.r.ParseForm()
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 		email := ctx.r.FormValue("email")
 
@@ -112,7 +122,7 @@ func (h *handler) sendMagicLinkToEmail() http.HandlerFunc {
 		// Auth token will allow use to verify their email
 		token, err := h.CreateRegistrationToken(ctx.context(), email)
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		// Construct the magic link to be used for verification
@@ -129,7 +139,7 @@ func (h *handler) sendMagicLinkToEmail() http.HandlerFunc {
 		_, err = client.SendEmail(ctx.context(), params)
 		if err != nil {
 			slog.Error("Could not send email", "to", email, "err", err.Error())
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		slog.Info("sending magic link", "email", email)
@@ -145,7 +155,7 @@ func (h *handler) authenticateByMagicLink() http.HandlerFunc {
 			slog.Error("Could not verify email", "err", err.Error())
 			url := appconfig.Config.URL
 			http.Redirect(ctx.w, ctx.r, url, http.StatusSeeOther)
-			return nil, nil
+			return nil, ErrDefault
 		}
 
 		slog.Info("Verified email")
@@ -156,7 +166,7 @@ func (h *handler) authenticateByMagicLink() http.HandlerFunc {
 			//return ui.CreateAccountPage(ui.PageProps{}), nil
 			user, err = h.CreateAccount(ctx.context(), email)
 			if err != nil {
-				return nil, err
+				return nil, ErrDefault
 			}
 
 		}
@@ -164,10 +174,10 @@ func (h *handler) authenticateByMagicLink() http.HandlerFunc {
 		session_token := generateSessionToken(32)
 		loggedIn, err := h.Login(ctx.context(), user.ID, session_token)
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 		if !loggedIn {
-			return nil, nil
+			return nil, ErrDefault
 		}
 
 		var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
@@ -178,12 +188,12 @@ func (h *handler) authenticateByMagicLink() http.HandlerFunc {
 		session.Values["session_token"] = session_token
 		err = session.Save(ctx.r, ctx.w)
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		groups, err := h.GetUserGroups(ctx.context(), user.ID)
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 		url := fmt.Sprintf("%s/g/%d/recipes", appconfig.Config.URL, groups[0].ID)
 		http.Redirect(ctx.w, ctx.r, url, http.StatusSeeOther)
@@ -202,7 +212,7 @@ func generateSessionToken(length int) string {
 }
 
 func renderNode(w http.ResponseWriter, r *http.Request, node Node) {
-	ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
+	Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
 		return node, nil
 	})(w, r)
 }

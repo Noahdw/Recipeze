@@ -37,15 +37,15 @@ func (h *handler) RouteRecipe(r chi.Router, m *mw.AuthMiddleware) {
 		// Get page for a group, including recipes
 		r.Get("/recipes", h.adapt(func(ctx requestContext) (Node, error) {
 			if !isUserActionAllowed(ctx.context()) {
-				return nil, fmt.Errorf("")
+				return nil, ErrDefault
 			}
 			groupID, err := GetGroupID(ctx.r)
 			if err != nil {
-				return nil, err
+				return nil, ErrDefault
 			}
 			recipes, err := h.GetGroupRecipes(ctx.context(), groupID)
 			if err != nil {
-				return nil, err
+				return nil, ErrDefault
 			}
 
 			// If HTMX request, return just the list
@@ -64,11 +64,11 @@ func (h *handler) RouteRecipe(r chi.Router, m *mw.AuthMiddleware) {
 
 		r.Get("/recipes/new", h.adapt(func(ctx requestContext) (Node, error) {
 			if !isUserActionAllowed(ctx.context()) {
-				return nil, fmt.Errorf("")
+				return nil, ErrDefault
 			}
 			group_id, err := GetGroupID(ctx.r)
 			if err != nil {
-				return nil, err
+				return nil, ErrDefault
 			}
 			return ui.RecipeModal(group_id), nil
 		}))
@@ -77,19 +77,19 @@ func (h *handler) RouteRecipe(r chi.Router, m *mw.AuthMiddleware) {
 
 		r.Get("/recipes/update/{recipe_id}", h.adapt(func(ctx requestContext) (Node, error) {
 			if !isUserActionAllowed(ctx.context()) {
-				return nil, fmt.Errorf("")
+				return nil, ErrDefault
 			}
 			recipeID, err := getRecipeID(ctx.r)
 			if err != nil {
-				return nil, err
+				return nil, ErrDefault
 			}
 			groupID, err := GetGroupID(ctx.r)
 			if err != nil {
-				return nil, err
+				return nil, ErrDefault
 			}
 			recipe, err := h.GetRecipeByID(ctx.context(), int32(recipeID))
 			if err != nil {
-				return nil, err
+				return nil, ErrDefault
 			}
 
 			return ui.RecipeEditPartial(recipe, groupID), nil
@@ -107,28 +107,28 @@ func (h *handler) RouteRecipe(r chi.Router, m *mw.AuthMiddleware) {
 func (h *handler) deleteRecipe() http.HandlerFunc {
 	return h.adapt(func(ctx requestContext) (Node, error) {
 		if !isUserActionAllowed(ctx.context()) {
-			return nil, fmt.Errorf("")
+			return nil, ErrDefault
 		}
 		recipeID, err := getRecipeID(ctx.r)
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 		groupID, err := GetGroupID(ctx.r)
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		err = h.DeleteRecipeByID(ctx.context(), recipeID)
 		if err != nil {
 			slog.Error("Could not delete recipe", "ID", recipeID)
-			return nil, err
+			return nil, ErrDefault
 		}
 		slog.Info("Deleted recipe", "id", recipeID)
 
 		recipes, err := h.GetGroupRecipes(ctx.context(), groupID)
 		if err != nil {
 			slog.Error("Could not get recipes")
-			return nil, err
+			return nil, ErrDefault
 		}
 		var recipe model.Recipe
 		selectedID := 0
@@ -154,22 +154,22 @@ func (h *handler) deleteRecipe() http.HandlerFunc {
 func (h *handler) updateRecipeDetails() http.HandlerFunc {
 	return h.adapt(func(ctx requestContext) (Node, error) {
 		if !isUserActionAllowed(ctx.context()) {
-			return nil, fmt.Errorf("")
+			return nil, ErrDefault
 		}
 		recipeID, err := getRecipeID(ctx.r)
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		groupID, err := GetGroupID(ctx.r)
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		// Parse the form
 		err = ctx.r.ParseForm()
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		// Update the recipe in the database
@@ -181,19 +181,19 @@ func (h *handler) updateRecipeDetails() http.HandlerFunc {
 		})
 		if err != nil {
 			slog.Error("Could not update recipe", "ID", recipeID)
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		recipe, err := h.GetRecipeByID(ctx.context(), int32(recipeID))
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		mainContent := ui.RecipeDetailPartial(recipe, groupID)
 		recipes, err := h.GetGroupRecipes(ctx.context(), groupID)
 		if err != nil {
 			slog.Error("Could not get recipes")
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		// Second part updates another element out-of-band
@@ -211,14 +211,14 @@ func (h *handler) updateRecipeDetails() http.HandlerFunc {
 func (h *handler) addNewRecipe() http.HandlerFunc {
 	return h.adapt(func(ctx requestContext) (Node, error) {
 		if !isUserActionAllowed(ctx.context()) {
-			return nil, fmt.Errorf("")
+			return nil, ErrDefault
 		}
 		ctx.r.ParseForm()
 		url := ctx.r.FormValue("url")
 
 		groupID, err := GetGroupID(ctx.r)
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		resp := req.MustGet(url)
@@ -233,20 +233,20 @@ func (h *handler) addNewRecipe() http.HandlerFunc {
 		id, err := h.AddRecipe(ctx.context(), url, meta.title, meta.description, meta.imageURL, 1, groupID) //FIX
 		if err != nil {
 			slog.Error("Could not add recipe", "error", err.Error())
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		recipe, err := h.GetRecipeByID(ctx.context(), int32(id))
 
 		if err != nil {
 			slog.Error("Could not get recipe", "error", err.Error())
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		recipes, err := h.GetGroupRecipes(ctx.context(), groupID)
 		if err != nil {
 			slog.Error("Could not get recipes", "error", err.Error())
-			return nil, err
+			return nil, ErrDefault
 		}
 		fmt.Printf("%#v\n", recipes)
 		mainContent := ui.RecipeListPartial(recipes, id, groupID)
@@ -266,17 +266,17 @@ func (h *handler) addNewRecipe() http.HandlerFunc {
 func (h *handler) getRecipeDetailView() http.HandlerFunc {
 	return h.adapt(func(ctx requestContext) (Node, error) {
 		if !isUserActionAllowed(ctx.context()) {
-			return nil, fmt.Errorf("")
+			return nil, ErrDefault
 		}
 		recipeID, err := getRecipeID(ctx.r)
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 		slog.Info("get recipe", "id", recipeID)
 
 		groupID, err := GetGroupID(ctx.r)
 		if err != nil {
-			return nil, err
+			return nil, ErrDefault
 		}
 
 		recipe, err := h.GetRecipeByID(ctx.r.Context(), int32(recipeID))
