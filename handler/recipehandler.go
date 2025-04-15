@@ -12,6 +12,7 @@ import (
 
 	mw "recipeze/middleware"
 	"recipeze/model"
+	"recipeze/parsing"
 	"recipeze/repo"
 	"recipeze/ui"
 
@@ -230,14 +231,37 @@ func (h *handler) addNewRecipe() http.HandlerFunc {
 		defer ctx.r.Body.Close()
 
 		meta := extractMeta(doc)
-		id, err := h.AddRecipe(ctx.context(), url, meta.title, meta.description, meta.imageURL, 1, groupID) //FIX
+		user := mw.GetUserFromContext(ctx.context())
+		id, err := h.AddRecipe(ctx.context(), url, meta.title, meta.description, meta.imageURL, user.ID, groupID)
 		if err != nil {
 			slog.Error("Could not add recipe", "error", err.Error())
 			return nil, ErrDefault
 		}
 
-		recipe, err := h.GetRecipeByID(ctx.context(), int32(id))
+		//extractedRecipe, err := parsing.ParseRecipe(resp.Bytes())
+		//if err != nil {
+		//slog.Error("Could not parse recipe", "error", err.Error())
 
+		text := parsing.HtmlToText(resp.Bytes())
+		go func() {
+			data := parsing.RecipeTextToJsonString(text)
+			if data == "" {
+				slog.Error("Could not get recipe data from LLM")
+				return
+			}
+			err := h.UpdateRecipeWithJSON(context.Background(), data, id) // FIXME - use better ctx
+			if err != nil {
+				slog.Error("Could not update db with recipe data", "error", err)
+				return
+			}
+			slog.Info("updated recipe with LLM data", "recipeID", id)
+		}()
+
+		//return nil, ErrDefault
+		//}
+		slog.Info("Added recipe", "userID", user.ID)
+
+		recipe, err := h.GetRecipeByID(ctx.context(), int32(id))
 		if err != nil {
 			slog.Error("Could not get recipe", "error", err.Error())
 			return nil, ErrDefault
@@ -248,7 +272,7 @@ func (h *handler) addNewRecipe() http.HandlerFunc {
 			slog.Error("Could not get recipes", "error", err.Error())
 			return nil, ErrDefault
 		}
-		fmt.Printf("%#v\n", recipes)
+
 		mainContent := ui.RecipeListPartial(recipes, id, groupID)
 
 		// Second part updates another element out-of-band

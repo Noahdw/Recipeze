@@ -37,6 +37,7 @@ type Recipe struct {
 	Url         pgtype.Text
 	Name        pgtype.Text
 	Description pgtype.Text
+	DataJson    []byte
 	ImageUrl    pgtype.Text
 	Likes       pgtype.Int4
 	CreatedAt   pgtype.Timestamptz

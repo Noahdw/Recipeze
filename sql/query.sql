@@ -11,6 +11,12 @@ INSERT INTO recipes (
 )
 RETURNING id;
 
+-- name: UpdateRecipeWithJSON :exec
+UPDATE recipes 
+SET 
+    data_json = $1
+WHERE id = $2;
+
 -- name: GetGroupRecipes :many 
 SELECT * FROM recipes where group_id = $1;
 

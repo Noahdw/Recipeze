@@ -2,7 +2,11 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"log/slog"
+	"os"
 	"recipeze/model"
+	"recipeze/parsing"
 	"recipeze/repo"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -36,6 +40,9 @@ type RecipeService interface {
 
 	// UpdateRecipe modifies an existing recipe
 	UpdateRecipe(ctx context.Context, args repo.UpdateRecipeParams) error
+
+	//
+	UpdateRecipeWithJSON(ctx context.Context, json string, recipeID int) error
 }
 
 func (r *Recipe) AddRecipe(ctx context.Context, url, name, description string, imgURL string, userID int, groupID int) (id int, err error) {
@@ -53,6 +60,14 @@ func (r *Recipe) AddRecipe(ctx context.Context, url, name, description string, i
 	}
 
 	return int(recipeid), nil
+}
+
+func (r *Recipe) UpdateRecipeWithJSON(ctx context.Context, json string, recipeID int) error {
+	err := r.queries.UpdateRecipeWithJSON(ctx, repo.UpdateRecipeWithJSONParams{
+		DataJson: []byte(json),
+		ID:       int32(recipeID),
+	})
+	return err
 }
 
 func (r *Recipe) GetGroupRecipes(ctx context.Context, group_id int) ([]model.Recipe, error) {
@@ -94,11 +109,24 @@ func (r *Recipe) UpdateRecipe(ctx context.Context, args repo.UpdateRecipeParams)
 }
 
 func newRecipe(pg repo.Recipe) model.Recipe {
+	// Parse the generated JSON
+	var collection parsing.RecipeCollection
+	err := json.Unmarshal([]byte(pg.DataJson), &collection)
+	if err != nil {
+		slog.Error("Error unmarshaling recipe json", "error", err)
+		file, err := os.Create("recipe.temp")
+		if err != nil {
+			return model.Recipe{}
+		}
+		file.Write([]byte(pg.DataJson))
+	}
+
 	return model.Recipe{
 		ID:          int(pg.ID),
 		Name:        pg.Name.String,
 		Url:         pg.Url.String,
 		Description: pg.Description.String,
 		ImageURL:    pg.ImageUrl.String,
+		Data:        &collection,
 	}
 }

@@ -10,6 +10,7 @@ import (
 	. "maragu.dev/gomponents/html"
 
 	"recipeze/model"
+	"recipeze/parsing"
 )
 
 // RecipePage shows the main recipe listing with a detail view
@@ -131,6 +132,11 @@ func RecipeDetailPartial(recipe *model.Recipe, groupID int) Node {
 		Div(
 			Class("whitespace-pre-wrap break-words"), // Preserves newlines and breaks long words
 			Text(recipe.Description),
+		),
+		H3(Class("text-lg font-semibold mb-1"), Text("Ingredients")),
+		Div(
+			Class("whitespace-pre-wrap break-words"), // Preserves newlines and breaks long words
+			Text(parsing.RecipeIngredients(recipe.Data)),
 		),
 		Img(
 			Src(recipe.ImageURL),

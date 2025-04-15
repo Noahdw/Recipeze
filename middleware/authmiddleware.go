@@ -56,9 +56,8 @@ func (a *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 
 func (a *AuthMiddleware) AuthorizeGroup(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userAny := r.Context().Value(CtxUserKey{})
-		user, ok := userAny.(*model.User)
-		if !ok {
+		user := GetUserFromContext(r.Context())
+		if user == nil {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -75,6 +74,15 @@ func (a *AuthMiddleware) AuthorizeGroup(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), CtxGroupAuthorizedKey{}, inGroup)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func GetUserFromContext(ctx context.Context) *model.User {
+	userAny := ctx.Value(CtxUserKey{})
+	user, ok := userAny.(*model.User)
+	if !ok {
+		return nil
+	}
+	return user
 }
 
 func getGroupID(r *http.Request) (int, error) {

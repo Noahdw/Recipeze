@@ -1,0 +1,109 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Recipe Collection Schema",
+    "description": "A schema for standardizing recipes for a shopping list planner",
+    "type": "object",
+    "required": [
+        "recipes"
+    ],
+    "properties": {
+        "recipes": {
+            "type": "array",
+            "description": "An array of recipes",
+            "items": {
+                "type": "object",
+                "required": [
+                    "name",
+                    "ingredients"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The name of the recipe"
+                    },
+                    "prep_time": {
+                        "type": "string",
+                        "description": "Preparation time for the recipe"
+                    },
+                    "cook_time": {
+                        "type": "string",
+                        "description": "Cooking time for the recipe"
+                    },
+                    "total_time": {
+                        "type": "string",
+                        "description": "Total time to prepare the recipe"
+                    },
+                    "servings": {
+                        "type": [
+                            "integer"
+                        ],
+                        "description": "Number of servings the recipe makes"
+                    },
+                    "cuisine": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Cuisines associated with the recipe"
+                    },
+                    "ingredients": {
+                        "type": "array",
+                        "description": "List of ingredients needed for the recipe",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "name"
+                            ],
+                            "properties": {
+                                "amount": {
+                                    "type": [
+                                        "number",
+                                        "null"
+                                    ],
+                                    "description": "Quantity of the ingredient"
+                                },
+                                "unit": {
+                                    "type": "string",
+                                    "description": "Unit of measurement for the ingredient"
+                                },
+                                "name": {
+                                    "type": "string",
+                                    "description": "Name of the ingredient"
+                                },
+                                "notes": {
+                                    "type": "string",
+                                    "description": "Additional notes about the ingredient (preparation, substitutions, etc.)"
+                                },
+                                "category": {
+                                    "type": "string",
+                                    "description": "Category of the ingredient (optional, for organizing shopping lists)"
+                                }
+                            }
+                        }
+                    },
+                    "instructions": {
+                        "type": "array",
+                        "description": "Step-by-step instructions for preparing the recipe",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "notes": {
+                        "type": "array",
+                        "description": "Additional notes or tips for the recipe",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "tags": {
+                        "type": "array",
+                        "description": "Tags for categorizing the recipe (e.g., vegetarian, gluten-free)",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

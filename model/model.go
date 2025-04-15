@@ -1,6 +1,8 @@
 // Package model has domain models used throughout the application.
 package model
 
+import "recipeze/parsing"
+
 type Recipe struct {
 	ID          int
 	Name        string
@@ -8,6 +10,7 @@ type Recipe struct {
 	Description string
 	ImageURL    string
 	GroupID     int
+	Data        *parsing.RecipeCollection
 }
 
 type User struct {

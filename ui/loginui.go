@@ -73,7 +73,7 @@ func SignupForm(targetId string) Node {
 					ID("email"),
 					Name("email"),
 					Class("w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"),
-					Placeholder("your@email.com"),
+					Placeholder("you@email.com"),
 					Required(),
 				),
 			),

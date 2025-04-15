@@ -181,7 +181,7 @@ func (q *Queries) DeleteRecipeByID(ctx context.Context, id int32) error {
 }
 
 const getGroupRecipes = `-- name: GetGroupRecipes :many
-SELECT id, created_by, group_id, url, name, description, image_url, likes, created_at FROM recipes where group_id = $1
+SELECT id, created_by, group_id, url, name, description, data_json, image_url, likes, created_at FROM recipes where group_id = $1
 `
 
 func (q *Queries) GetGroupRecipes(ctx context.Context, groupID int32) ([]Recipe, error) {
@@ -200,6 +200,7 @@ func (q *Queries) GetGroupRecipes(ctx context.Context, groupID int32) ([]Recipe,
 			&i.Url,
 			&i.Name,
 			&i.Description,
+			&i.DataJson,
 			&i.ImageUrl,
 			&i.Likes,
 			&i.CreatedAt,
@@ -267,7 +268,7 @@ func (q *Queries) GetLoginToken(ctx context.Context, token string) (LoginToken, 
 }
 
 const getRecipeByID = `-- name: GetRecipeByID :one
-SELECT id, created_by, group_id, url, name, description, image_url, likes, created_at from recipes WHERE id = $1 LIMIT 1
+SELECT id, created_by, group_id, url, name, description, data_json, image_url, likes, created_at from recipes WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetRecipeByID(ctx context.Context, id int32) (Recipe, error) {
@@ -280,6 +281,7 @@ func (q *Queries) GetRecipeByID(ctx context.Context, id int32) (Recipe, error) {
 		&i.Url,
 		&i.Name,
 		&i.Description,
+		&i.DataJson,
 		&i.ImageUrl,
 		&i.Likes,
 		&i.CreatedAt,
@@ -341,7 +343,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 }
 
 const getUserRecipes = `-- name: GetUserRecipes :many
-SELECT id, created_by, group_id, url, name, description, image_url, likes, created_at FROM recipes where created_by = $1
+SELECT id, created_by, group_id, url, name, description, data_json, image_url, likes, created_at FROM recipes where created_by = $1
 `
 
 func (q *Queries) GetUserRecipes(ctx context.Context, createdBy int32) ([]Recipe, error) {
@@ -360,6 +362,7 @@ func (q *Queries) GetUserRecipes(ctx context.Context, createdBy int32) ([]Recipe
 			&i.Url,
 			&i.Name,
 			&i.Description,
+			&i.DataJson,
 			&i.ImageUrl,
 			&i.Likes,
 			&i.CreatedAt,
@@ -440,6 +443,23 @@ func (q *Queries) UpdateRecipe(ctx context.Context, arg UpdateRecipeParams) erro
 		arg.Description,
 		arg.ID,
 	)
+	return err
+}
+
+const updateRecipeWithJSON = `-- name: UpdateRecipeWithJSON :exec
+UPDATE recipes 
+SET 
+    data_json = $1
+WHERE id = $2
+`
+
+type UpdateRecipeWithJSONParams struct {
+	DataJson []byte
+	ID       int32
+}
+
+func (q *Queries) UpdateRecipeWithJSON(ctx context.Context, arg UpdateRecipeWithJSONParams) error {
+	_, err := q.db.Exec(ctx, updateRecipeWithJSON, arg.DataJson, arg.ID)
 	return err
 }
 

@@ -29,6 +29,7 @@ CREATE TABLE recipes (
     url VARCHAR(255),
     name VARCHAR(255),
     description VARCHAR(10000),
+    data_json BYTEA,
     image_url VARCHAR(255),
     likes INT DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
