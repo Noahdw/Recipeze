@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"os"
 	"recipeze/model"
 	"recipeze/parsing"
 	"recipeze/repo"
@@ -114,11 +113,6 @@ func newRecipe(pg repo.Recipe) model.Recipe {
 	err := json.Unmarshal([]byte(pg.DataJson), &collection)
 	if err != nil {
 		slog.Error("Error unmarshaling recipe json", "error", err)
-		file, err := os.Create("recipe.temp")
-		if err != nil {
-			return model.Recipe{}
-		}
-		file.Write([]byte(pg.DataJson))
 	}
 
 	return model.Recipe{

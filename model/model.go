@@ -20,6 +20,14 @@ type User struct {
 }
 
 type Group struct {
-	ID   int
-	Name string
+	ID      int
+	Name    string
+	Members []GroupMember
+}
+
+type GroupMember struct {
+	ID      int
+	Name    string
+	Email   string
+	IsAdmin bool
 }

@@ -109,9 +109,10 @@ WHERE id = $2;
 -- name: CreateLoginToken :one
 INSERT INTO login_tokens (
     user_id,
-    token
+    token,
+    expires_at
 ) VALUES (
-    $1, $2
+    $1, $2, $3
 )
 RETURNING *;
 

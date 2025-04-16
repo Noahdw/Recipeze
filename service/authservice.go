@@ -167,6 +167,10 @@ func (a *Auth) Login(ctx context.Context, userID int, token string) (bool, error
 	_, err := a.queries.CreateLoginToken(ctx, repo.CreateLoginTokenParams{
 		UserID: int32(userID),
 		Token:  token,
+		ExpiresAt: pgtype.Timestamptz{
+			Time:  time.Now().Add(time.Hour * 24),
+			Valid: true,
+		},
 	})
 	if err != nil {
 		return false, err

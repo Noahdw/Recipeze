@@ -22,6 +22,7 @@ type PageProps struct {
 	Title         string
 	Description   string
 	IncludeHeader bool
+	GroupID       int
 }
 
 func page(props PageProps, children ...Node) Node {
@@ -33,7 +34,7 @@ func page(props PageProps, children ...Node) Node {
 	})
 	var headerNode Node
 	if props.IncludeHeader {
-		headerNode = header()
+		headerNode = header(props.GroupID)
 	}
 	return HTML5(HTML5Props{
 		Title:       props.Title,
@@ -60,14 +61,15 @@ func page(props PageProps, children ...Node) Node {
 }
 
 // header bar with logo and navigation.
-func header() Node {
+func header(groupID int) Node {
 	return Div(Class("bg-indigo-600 text-white shadow-sm"),
 		container(true, false,
-			Div(Class("h-16 flex items-center justify-between"),
+			Div(Class("h-14 flex items-center justify-between"),
 				A(Href("/"), Class("inline-flex items-center text-xl font-semibold"),
 					//Img(Src("/images/logo.png"), Alt("Logo"), Class("h-12 w-auto bg-white rounded-full mr-4")),
 					Text("Home"),
 				),
+				AddInviteButton(groupID),
 				PrimaryButton("log out", "/logout", ""),
 			),
 		),

@@ -125,20 +125,22 @@ func (q *Queries) CreateGroup(ctx context.Context, name pgtype.Text) (Group, err
 const createLoginToken = `-- name: CreateLoginToken :one
 INSERT INTO login_tokens (
     user_id,
-    token
+    token,
+    expires_at
 ) VALUES (
-    $1, $2
+    $1, $2, $3
 )
 RETURNING id, user_id, token, consumed_at, created_at, expires_at, creator_ip
 `
 
 type CreateLoginTokenParams struct {
-	UserID int32
-	Token  string
+	UserID    int32
+	Token     string
+	ExpiresAt pgtype.Timestamptz
 }
 
 func (q *Queries) CreateLoginToken(ctx context.Context, arg CreateLoginTokenParams) (LoginToken, error) {
-	row := q.db.QueryRow(ctx, createLoginToken, arg.UserID, arg.Token)
+	row := q.db.QueryRow(ctx, createLoginToken, arg.UserID, arg.Token, arg.ExpiresAt)
 	var i LoginToken
 	err := row.Scan(
 		&i.ID,

@@ -94,6 +94,17 @@ Here's the recipe text to extract information from:
 %s
 
 Please return ONLY valid JSON that follows the schema with no additional text or explanation.
+
+Note: Use tbsp or tsp rather than tablespoon or teaspoon. A correct item in the schema will look something like amount = 1, unit = cup, name = white whine, though this would appear as white wine 1 cup in the given text.
+If an ingredient is listed as 'or', such as 4 lemons or 4 limes, select just the one which seem most appropriate for the meal.
+Prefer to keep units simplified and standardized. Rather than 'large cloves', just clove. This is for a shopping list, so the aim is to make the data easily composable with other sources of data.
+If a name is plural, give it as singular. DO NOT use plural forms.
+In cases where there is no unit, such as tomatoes, we can ignore it. The unit does not denote size, that is apart of the name.
+Given a range, choose a reasonable amount instead, avoid giving two options.
+Maintain enough specificity so that someone can find the necessary items at the store. They want to know that it's greek yogurt rather than just yogurt, for instance.
+Some recipes have multiple parts, like a dressing or sauce to go with it, that is why we specify a list of recipes in the json, they are all the subparts that make up the recipe as a whole.
+Leave salt and pepper out, they are not needed to shop for most of the time.
+Specify paprika as either smoked or sweet. Clove is not a unit (garlic)
 `, schemaPrompt, string(text))
 
 	// Initialize the Claude client
@@ -101,7 +112,7 @@ Please return ONLY valid JSON that follows the schema with no additional text or
 
 	// Make the API call to Claude
 	resp, err := client.CreateMessages(context.Background(), anthropic.MessagesRequest{
-		Model: anthropic.ModelClaude3Haiku20240307,
+		Model: anthropic.ModelClaude3Dot5HaikuLatest,
 		Messages: []anthropic.Message{
 			anthropic.NewUserTextMessage(prompt),
 		},

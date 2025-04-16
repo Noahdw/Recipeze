@@ -14,7 +14,7 @@ import (
 )
 
 // RecipePage shows the main recipe listing with a detail view
-func RecipePage(props PageProps, recipes []model.Recipe, groupID int) Node {
+func RecipePage(props PageProps, recipes []model.Recipe, group model.Group) Node {
 	defaultId := 0
 	var defaultRecipe *model.Recipe
 	if len(recipes) > 0 {
@@ -27,19 +27,44 @@ func RecipePage(props PageProps, recipes []model.Recipe, groupID int) Node {
 
 	return page(props,
 		ModalContainer(),
+
+		// Group Indicator and Member Management
+		Div(Class("flex items-center justify-between gap-2 mb-2"),
+			Div(Class(""),
+				AddRecipeButton(group.ID),
+				AddPlanMealsButton(group.ID),
+			),
+			Div(Class("flex items-center gap-2"),
+				// Group Selector Dropdown
+				Div(Class("relative inline-block"),
+					Button(
+						ID("group-selector"),
+						Class("flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded"),
+						Attr("aria-haspopup", "true"),
+						Attr("aria-expanded", "false"),
+						Attr("onclick", "document.getElementById('group-dropdown').classList.toggle('hidden')"),
+						solid.UserGroup(Class("h-5 w-5")),
+						Text(group.Name),
+						solid.ChevronDown(Class("h-4 w-4")),
+					),
+					groupDropDownMenu(&group),
+				),
+				groupMembersDisplay(&group),
+			),
+		),
+
 		Div(Class("flex flex-col md:flex-row gap-6"),
 			// Left column - Recipe List
-			Div(Class("w-full md:w-1/3 "),
+			Div(Class("w-full md:w-1/3"),
 				H1(Class("text-2xl font-bold mb-4"), Text("Recipes")),
-				AddRecipeButton(groupID),
 				Div(ID("recipe-list"),
-					RecipeListPartial(recipes, defaultId, groupID),
+					RecipeListPartial(recipes, defaultId, group.ID),
 				),
 			),
 			// Right column - Recipe Detail
 			Div(Class("w-full md:w-2/3 bg-gray-50 p-4 rounded-lg"),
 				Div(ID("recipe-detail"),
-					RecipeDetailPartial(defaultRecipe, groupID),
+					RecipeDetailPartial(defaultRecipe, group.ID),
 				),
 			),
 		),
@@ -66,19 +91,18 @@ func RecipeListPartial(recipes []model.Recipe, selectedID int, groupID int) Node
 func RecipeListItemPartial(recipe *model.Recipe, selectedID int, groupID int) Node {
 	var buttonClass string
 	if recipe.ID == selectedID {
-		buttonClass = "w-full text-left cursor-pointer bg-blue-100 hover:bg-blue-200 py-1 px-2 rounded font-medium active-recipe"
+		buttonClass = "w-full text-left cursor-pointer bg-blue-100 hover:bg-blue-200 py-1 px-2 rounded active-recipe"
 	} else {
 		buttonClass = "w-full text-left cursor-pointer hover:bg-gray-100 py-1 px-2 rounded inactive-recipe"
 	}
 	id := fmt.Sprintf("recipe-list-item-%d", recipe.ID)
 	return Li(
-		Class("py-1"),
 		Button(
 			Class(buttonClass), ID(id),
 			hx.Get(fmt.Sprintf("/g/%d/recipe/%d", groupID, recipe.ID)),
 			hx.Target("#recipe-detail"),
 			// Add class operations to clear previous selection
-			Attr("hx-on::before-request", "document.querySelectorAll('.active-recipe').forEach(el => { el.classList.remove('bg-blue-100', 'hover:bg-blue-200', 'font-medium', 'active-recipe'); el.classList.add('hover:bg-gray-100', 'inactive-recipe'); })"),
+			Attr("hx-on::before-request", "document.querySelectorAll('.active-recipe').forEach(el => { el.classList.remove('bg-blue-100', 'hover:bg-blue-200', 'active-recipe'); el.classList.add('hover:bg-gray-100', 'inactive-recipe'); })"),
 			Text(recipe.Name),
 		),
 	)
@@ -245,7 +269,7 @@ func ErrorPartial(message string) Node {
 
 func AddRecipeButton(group_id int) Node {
 	return Button(
-		Class("bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer"),
+		Class("bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer mr-2"),
 		hx.Get(fmt.Sprintf("/g/%d/recipes/new", group_id)),
 		hx.Target("#modal-container"),
 		hx.Swap("innerHTML"),
@@ -255,10 +279,111 @@ func AddRecipeButton(group_id int) Node {
 	)
 }
 
+func AddInviteButton(group_id int) Node {
+	return Button(
+		Class("hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer mr-2"),
+		hx.Get(fmt.Sprintf("/g/%d/recipes/invite", group_id)),
+		hx.Target("#modal-container"),
+		hx.Swap("innerHTML"),
+		// focus the URL input after the modal is loaded
+		Attr("hx-on::after-request", "setTimeout(() => document.getElementById('recipe-invite').focus(), 10)"),
+		Text("Invite"),
+	)
+}
+
+func AddPlanMealsButton(group_id int) Node {
+	return Button(
+		Class("bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer"),
+		hx.Get(fmt.Sprintf("/g/%d/recipes/new", group_id)),
+		hx.Target("#modal-container"),
+		hx.Swap("innerHTML"),
+		// focus the URL input after the modal is loaded
+		Attr("hx-on::after-request", "setTimeout(() => document.getElementById('recipe-url').focus(), 10)"),
+		Text("Plan meals"),
+	)
+}
+
 func ModalContainer() Node {
 	return Div(
 		ID("modal-container"),
 		// The modal will be loaded here
+	)
+}
+
+func groupDropDownMenu(group *model.Group) Node {
+	return Div(
+		ID("group-dropdown"),
+		Class("hidden absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10"),
+		Div(Class("py-1"),
+			Div(
+				Class("px-4 py-2 text-xs text-gray-500"),
+				Text("YOUR GROUPS"),
+			),
+			// loop through groups here
+			A(
+				Href(fmt.Sprintf("/g/%d/recipes", group.ID)),
+				Class("block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"),
+				Div(Class("flex items-center justify-between"),
+					Div(Class("flex items-center gap-2"),
+						solid.UserGroup(Class("h-4 w-4 text-gray-400")),
+						Text(group.Name),
+					),
+					Span(Class("text-xs text-gray-500"),
+						Text(fmt.Sprintf("%d members", len(group.Members))),
+					),
+				),
+			),
+			// Create New Group option
+			Div(Class("border-t border-gray-100 mt-1 pt-1"),
+				Button(
+					Class("w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"),
+					hx.Get("/groups/new"),
+					hx.Target("#modal-container"),
+					Div(Class("flex items-center gap-2"),
+						solid.Plus(Class("h-4 w-4 text-green-500")),
+						Text("Create New Group"),
+					),
+				),
+			),
+		),
+	)
+}
+
+func groupMembersDisplay(group *model.Group) Node {
+	return Div(
+		Class("ml-4 flex items-center"),
+		// Member avatars
+		Div(Class("flex -space-x-2"),
+			// We'd iterate through the first few members here
+			Map(group.Members[:min(3, len(group.Members))], func(member model.GroupMember) Node {
+				return Div(
+					Class("w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs border-2 border-white"),
+					Text(member.Name[:1]), // First letter of name as avatar
+				)
+			}),
+			// Show +X more if there are more members
+			If(len(group.Members) > 3,
+				Div(
+					Class("w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs border-2 border-white"),
+					Text(fmt.Sprintf("+%d", len(group.Members)-3)),
+				),
+			),
+		),
+		// Add member button
+		Button(
+			Class("ml-2 w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:bg-blue-200"),
+			hx.Get(fmt.Sprintf("/g/%d/members/invite", group.ID)),
+			hx.Target("#modal-container"),
+			Attr("aria-label", "Invite group member"),
+			solid.Plus(Class("h-4 w-4")),
+		),
+		// View all members button
+		Button(
+			Class("ml-2 text-sm text-blue-600 hover:text-blue-800"),
+			hx.Get(fmt.Sprintf("/g/%d/members", group.ID)),
+			hx.Target("#modal-container"),
+			Text("View all"),
+		),
 	)
 }
 
@@ -305,6 +430,55 @@ func RecipeModal(group_id int) Node {
 						Type("submit"),
 						Class("bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer"),
 						Text("Save Recipe"),
+					),
+				),
+			),
+		),
+	)
+}
+
+func InviteModal(group_id int) Node {
+	return Div(
+		Class("fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50"),
+		Div(
+			Class("bg-white rounded-lg p-6 max-w-md w-full"),
+			Div(
+				Class("flex justify-between items-center mb-4"),
+				H3(Class("text-lg font-medium"), Text("Invite Someone")),
+				Button(
+					Class("text-gray-400 hover:text-gray-500 cursor-pointer"),
+					hx.Get("/empty"),
+					hx.Target("#modal-container"),
+					hx.Swap("innerHTML"),
+					Text("×"),
+				),
+			),
+			Form(
+				hx.Post(fmt.Sprintf("/g/%d/recipes/invite", group_id)),
+				hx.Target("#recipe-list"),
+				hx.Swap("innerHTML"),
+				Attr("hx-on::after-request", "document.querySelector('#modal-container').innerHTML = ''"),
+
+				Div(
+					Class("mb-4"),
+					Label(Class("block text-sm font-medium text-gray-700"), For("recipe-invite"), Text("Enter the email to receive the invite")),
+					Input(Type("email"), ID("recipe-invite"), Name("email"), Required(), Class("mt-1 block w-full rounded-md border-gray-300 shadow-sm")),
+				),
+
+				Div(
+					Class("mt-6 flex justify-end"),
+					Button(
+						Type("button"),
+						Class("mr-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded cursor-pointer"),
+						hx.Get("/empty"),
+						hx.Target("#modal-container"),
+						hx.Swap("innerHTML"),
+						Text("Cancel"),
+					),
+					Button(
+						Type("submit"),
+						Class("bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer"),
+						Text("Send invite"),
 					),
 				),
 			),
