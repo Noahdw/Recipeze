@@ -3,6 +3,7 @@ CREATE TABLE users (
     email VARCHAR(128) NOT NULL UNIQUE,
     name VARCHAR(128),
     image_url VARCHAR(255),
+    setup_account BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -44,6 +44,9 @@ type AuthService interface {
 
 	// IsUserInGroup tells if a user belongs to a group
 	IsUserInGroup(ctx context.Context, groupID int, userID int) (bool, error)
+
+	// GetGroupUsers provides the users belonging to a group
+	GetGroupUsers(ctx context.Context, groupID int) ([]model.User, error)
 }
 
 func NewAuthService(queries *repo.Queries, db *pgxpool.Pool) *Auth {
@@ -107,9 +110,10 @@ func (a *Auth) GetUser(ctx context.Context, email string) (*model.User, error) {
 		return nil, err
 	}
 	user := model.User{
-		ID:    int(pgUser.ID),
-		Name:  pgUser.Name.String,
-		Email: pgUser.Email,
+		ID:            int(pgUser.ID),
+		Name:          pgUser.Name.String,
+		Email:         pgUser.Email,
+		SetupComplete: pgUser.SetupAccount.Bool,
 	}
 	return &user, nil
 }
@@ -192,9 +196,10 @@ func (a *Auth) GetLoggedInUser(ctx context.Context, sessionStoken string) (*mode
 		return nil, err
 	}
 	user := &model.User{
-		ID:    int(pgUser.ID),
-		Name:  pgUser.Name.String,
-		Email: pgUser.Email,
+		ID:            int(pgUser.ID),
+		Name:          pgUser.Name.String,
+		Email:         pgUser.Email,
+		SetupComplete: pgUser.SetupAccount.Bool,
 	}
 	return user, nil
 }
@@ -208,6 +213,24 @@ func (a *Auth) IsUserInGroup(ctx context.Context, groupID int, userID int) (bool
 		return false, err
 	}
 	return true, nil
+}
+
+func (a *Auth) GetGroupUsers(ctx context.Context, groupID int) ([]model.User, error) {
+	pgUsers, err := a.queries.GetGroupUsers(ctx, int32(groupID))
+	if err != nil {
+		return nil, err
+	}
+	var users []model.User
+	for _, pgUser := range pgUsers {
+		user := model.User{
+			ID:            int(pgUser.ID),
+			Name:          pgUser.Name.String,
+			Email:         pgUser.Email,
+			SetupComplete: pgUser.SetupAccount.Bool,
+		}
+		users = append(users, user)
+	}
+	return users, nil
 }
 
 func GenerateSecureToken(length int) string {

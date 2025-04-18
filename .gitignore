@@ -6,3 +6,4 @@
 /tmp/app
 /tmp/build-errors.log
 .env
+.vscode/settings.json

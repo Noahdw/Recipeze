@@ -76,6 +76,9 @@ WHERE group_users.group_id = $1;
 -- name: IsUserInGroup :one
 SELECT id from group_users WHERE group_id = $1 AND user_id = $2 LIMIT 1;
 
+-- name: IsUserAccountSetupComplete :one
+select setup_account from users where id = $1;
+
 -- name: GetUserByEmail :one
 SELECT * from users WHERE email = $1 LIMIT 1;
 

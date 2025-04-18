@@ -54,7 +54,7 @@ INSERT INTO users (
 ) VALUES (
     $1
 )
-RETURNING id, email, name, image_url, created_at
+RETURNING id, email, name, image_url, setup_account, created_at
 `
 
 func (q *Queries) AddUser(ctx context.Context, email string) (User, error) {
@@ -65,6 +65,7 @@ func (q *Queries) AddUser(ctx context.Context, email string) (User, error) {
 		&i.Email,
 		&i.Name,
 		&i.ImageUrl,
+		&i.SetupAccount,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -218,7 +219,7 @@ func (q *Queries) GetGroupRecipes(ctx context.Context, groupID int32) ([]Recipe,
 }
 
 const getGroupUsers = `-- name: GetGroupUsers :many
-SELECT u.id, u.email, u.name, u.image_url, u.created_at 
+SELECT u.id, u.email, u.name, u.image_url, u.setup_account, u.created_at 
 FROM users u
 JOIN group_users gu ON u.id = gu.user_id
 WHERE gu.group_id = $1
@@ -238,6 +239,7 @@ func (q *Queries) GetGroupUsers(ctx context.Context, groupID int32) ([]User, err
 			&i.Email,
 			&i.Name,
 			&i.ImageUrl,
+			&i.SetupAccount,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -311,7 +313,7 @@ func (q *Queries) GetRegistrationToken(ctx context.Context, token string) (Regis
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, name, image_url, created_at from users WHERE email = $1 LIMIT 1
+SELECT id, email, name, image_url, setup_account, created_at from users WHERE email = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -322,13 +324,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Email,
 		&i.Name,
 		&i.ImageUrl,
+		&i.SetupAccount,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, name, image_url, created_at from users WHERE id = $1 LIMIT 1
+SELECT id, email, name, image_url, setup_account, created_at from users WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
@@ -339,6 +342,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 		&i.Email,
 		&i.Name,
 		&i.ImageUrl,
+		&i.SetupAccount,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -404,6 +408,17 @@ func (q *Queries) GetUsersGroups(ctx context.Context, groupID int32) ([]Group, e
 		return nil, err
 	}
 	return items, nil
+}
+
+const isUserAccountSetupComplete = `-- name: IsUserAccountSetupComplete :one
+select setup_account from users where id = $1
+`
+
+func (q *Queries) IsUserAccountSetupComplete(ctx context.Context, id int32) (pgtype.Bool, error) {
+	row := q.db.QueryRow(ctx, isUserAccountSetupComplete, id)
+	var setup_account pgtype.Bool
+	err := row.Scan(&setup_account)
+	return setup_account, err
 }
 
 const isUserInGroup = `-- name: IsUserInGroup :one

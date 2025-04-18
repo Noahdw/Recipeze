@@ -38,7 +38,7 @@ func NewHandler(auth service.AuthService, recipe service.RecipeService) *handler
 func InitRouting(r chi.Router, auth service.AuthService, recipe service.RecipeService) {
 	mw := rmiddleware.NewAuthMiddleware(auth)
 	h := NewHandler(auth, recipe)
-	h.RouteHome(r)
+	h.RouteHome(r, mw)
 	h.RouteRecipe(r, mw)
 }
 

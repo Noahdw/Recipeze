@@ -10,6 +10,7 @@ import (
 	"os"
 	"recipeze/appconfig"
 
+	mw "recipeze/middleware"
 	"recipeze/ui"
 
 	awsc "github.com/aws/aws-sdk-go-v2/config"
@@ -28,7 +29,7 @@ var (
 	ErrNotAuthorized = errors.New("not auhotirzed")
 )
 
-func (h *handler) RouteHome(r chi.Router) {
+func (h *handler) RouteHome(r chi.Router, m *mw.AuthMiddleware) {
 
 	r.Get("/", h.adapt(func(ctx requestContext) (Node, error) {
 		return ui.HomePage(ui.PageProps{IncludeHeader: false}), nil
@@ -37,6 +38,12 @@ func (h *handler) RouteHome(r chi.Router) {
 	r.Get("/logout", h.logout())
 	r.Post("/auth/magic-link", h.sendMagicLinkToEmail())
 	r.Get("/auth/verify", h.authenticateByMagicLink())
+
+	r.Group(func(r chi.Router) {
+		r.Use(m.Authenticate)
+		r.Get("/account/setup", h.showSetupUserDetails())
+		r.Post("/account/setup", h.finishSetupUserDetails())
+	})
 }
 
 func (h *handler) login() http.HandlerFunc {
@@ -114,7 +121,7 @@ func (h *handler) sendMagicLinkToEmail() http.HandlerFunc {
 		}
 		email := ctx.r.FormValue("email")
 
-		desination := &types.Destination{
+		destination := &types.Destination{
 			ToAddresses: []string{email},
 		}
 
@@ -131,7 +138,7 @@ func (h *handler) sendMagicLinkToEmail() http.HandlerFunc {
 		params := &sesv2.SendEmailInput{
 			Content:              createLoginEmail(appconfig.AppName(), magicLink),
 			ConfigurationSetName: new(string),
-			Destination:          desination,
+			Destination:          destination,
 			FromEmailAddress:     &appconfig.Config.FromEmail,
 		}
 
@@ -191,14 +198,51 @@ func (h *handler) authenticateByMagicLink() http.HandlerFunc {
 			return nil, ErrDefault
 		}
 
+		url := appconfig.Config.URL + "/account/setup"
+		http.Redirect(ctx.w, ctx.r, url, http.StatusSeeOther)
+		slog.Info("Redirect verified user", "url", url)
+
+		return nil, nil
+	})
+}
+
+func (h *handler) showSetupUserDetails() http.HandlerFunc {
+	slog.Info("requested showSetupUserDetails")
+	return h.adapt(func(ctx requestContext) (Node, error) {
+		user := mw.GetUserFromContext(ctx.context())
+		if user == nil {
+			return nil, ErrDefault
+		}
+		if user.SetupComplete {
+
+			return nil, ErrDefault
+		}
+		props := ui.PageProps{
+			Title:         "",
+			Description:   "",
+			IncludeHeader: false,
+			GroupID:       0,
+		}
+		return ui.AccountSetupPage(props), nil
+	})
+}
+
+func (h *handler) finishSetupUserDetails() http.HandlerFunc {
+	slog.Info("requested finishSetupUserDetails")
+	return h.adapt(func(ctx requestContext) (Node, error) {
+		user := mw.GetUserFromContext(ctx.context())
+		if user == nil {
+			return nil, ErrDefault
+		}
 		groups, err := h.GetUserGroups(ctx.context(), user.ID)
 		if err != nil {
 			return nil, ErrDefault
 		}
-		url := fmt.Sprintf("%s/g/%d/recipes", appconfig.Config.URL, groups[0].ID)
-		http.Redirect(ctx.w, ctx.r, url, http.StatusSeeOther)
-		slog.Info("Redirect verified user", "url", url)
 
+		// Redirect to the default recipes page for the user
+		url := fmt.Sprintf("%s/g/%d/recipes", appconfig.Config.URL, groups[0].ID)
+		ctx.w.Header().Set("HX-Redirect", url)
+		ctx.w.WriteHeader(http.StatusOK)
 		return nil, nil
 	})
 }

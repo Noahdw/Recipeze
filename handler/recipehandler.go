@@ -127,12 +127,22 @@ func (h *handler) getRecipes() http.HandlerFunc {
 			Name:    "Test Group",
 			Members: []model.GroupMember{},
 		}
-		group.Members = append(group.Members, model.GroupMember{
-			ID:      groupID,
-			Name:    "John",
-			Email:   "Jophn@email.com",
-			IsAdmin: false,
-		})
+
+		users, err := h.GetGroupUsers(ctx.context(), groupID)
+		if err != nil {
+			return nil, ErrDefault
+		}
+
+		for _, user := range users { // Don't like this.
+			mg := model.GroupMember{
+				ID:      user.ID,
+				Name:    user.Name,
+				Email:   user.Email,
+				IsAdmin: false,
+			}
+			group.Members = append(group.Members, mg)
+		}
+
 		// Otherwise return full page
 		return ui.RecipePage(ui.PageProps{IncludeHeader: true}, recipes, group), nil
 	})

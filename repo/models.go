@@ -54,9 +54,10 @@ type RegistrationToken struct {
 }
 
 type User struct {
-	ID        int32
-	Email     string
-	Name      pgtype.Text
-	ImageUrl  pgtype.Text
-	CreatedAt pgtype.Timestamptz
+	ID           int32
+	Email        string
+	Name         pgtype.Text
+	ImageUrl     pgtype.Text
+	SetupAccount pgtype.Bool
+	CreatedAt    pgtype.Timestamptz
 }

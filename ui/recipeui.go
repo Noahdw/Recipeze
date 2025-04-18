@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"log/slog"
 
 	. "maragu.dev/gomponents"
 	"maragu.dev/gomponents-heroicons/v3/solid"
@@ -21,13 +20,10 @@ func RecipePage(props PageProps, recipes []model.Recipe, group model.Group) Node
 		defaultId = recipes[0].ID
 		defaultRecipe = &recipes[0]
 	}
-	slog.Info("id ", "id", defaultId)
-
 	props.Title = "Recipes"
 
 	return page(props,
 		ModalContainer(),
-
 		// Group Indicator and Member Management
 		Div(Class("flex items-center justify-between gap-2 mb-2"),
 			Div(Class(""),
@@ -356,9 +352,13 @@ func groupMembersDisplay(group *model.Group) Node {
 		Div(Class("flex -space-x-2"),
 			// We'd iterate through the first few members here
 			Map(group.Members[:min(3, len(group.Members))], func(member model.GroupMember) Node {
+				userInitial := "T"
+				if member.Name != "" {
+					userInitial = member.Name[:1]
+				}
 				return Div(
 					Class("w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs border-2 border-white"),
-					Text(member.Name[:1]), // First letter of name as avatar
+					Text(userInitial), // First letter of name as avatar
 				)
 			}),
 			// Show +X more if there are more members
